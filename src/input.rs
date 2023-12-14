@@ -99,6 +99,8 @@ pub fn input_formatted() -> Result<()> {
                     if check_arrows {
 
                         let mut temp_cursor = 0;
+
+                        let mut left_arrow = -1;
                         let mut left_bracket = -1;
                         let mut minus = -1;
                         let mut right_bracket = -1;
@@ -106,7 +108,9 @@ pub fn input_formatted() -> Result<()> {
 
                         loop {
                             if temp_cursor < input_string.len() {
-                                if input_string[temp_cursor] == "<" {
+                                if input_string[temp_cursor] == "←" {
+                                    left_arrow = temp_cursor as isize;
+                                } else if input_string[temp_cursor] == "<" {
                                     left_bracket = temp_cursor as isize;
                                 } else if input_string[temp_cursor] == "-" {
                                     minus = temp_cursor as isize;
@@ -115,22 +119,28 @@ pub fn input_formatted() -> Result<()> {
                                 } else if input_string[temp_cursor] == "→" {
                                     right_arrow = temp_cursor as isize;
                                 } else if input_string[temp_cursor] != " " {
+                                    left_arrow = -1;
                                     left_bracket = -1;
                                     minus = -1;
+                                    right_bracket = -1;
                                     right_arrow = -1;
                                 }
 
                                 if minus >= 0 && right_bracket >= 0 {
                                     let mut double = false;
                                     let mut min = minus;
-                                    let max = right_bracket;
+                                    let mut max = right_bracket;
                                     if left_bracket >= 0 {
                                         double = true;
                                         min = left_bracket;
                                     }
 
+                                    if !double {
+                                        max += 1;
+                                    }
+
                                     //remove all characters from max to min
-                                    for _ in min+1..max+1 {
+                                    for _ in min+1..max {
                                         input_string.remove((min+1) as usize);
 
                                         if cursor > min {
@@ -139,10 +149,10 @@ pub fn input_formatted() -> Result<()> {
                                     }
 
                                     if double {
-                                        input_string[min as usize] = "⟷".to_string();
-                                    } else {
-                                        input_string[min as usize] = "→".to_string();
+                                        input_string[min as usize] = "←".to_string();
+                                        min += 1;
                                     }
+                                    input_string[(min) as usize] = "→".to_string();
 
                                     minus = -1;
                                     right_bracket = -1;
