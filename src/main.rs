@@ -1,5 +1,6 @@
 pub mod input;
 
 fn main() {
-    input::input_formatted();
+    //let data = input::input_formatted().unwrap();
+    
 }

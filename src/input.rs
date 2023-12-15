@@ -7,43 +7,14 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode},
 };
 
-const HELP: &str = r#"Blocking poll() & non-blocking read()
- - Keyboard, mouse and terminal resize events enabled
- - Prints "." every second if there's no event
- - Hit "c" to print current cursor position
- - Use Esc to quit
-"#;
+pub fn input_formatted() -> Result<Vec<String>> {
 
-fn print_events() -> Result<()> {
-    loop {
-        // Wait up to 1s for another event
-        if poll(Duration::from_millis(1_000))? {
-            // It's guaranteed that read() wont block if `poll` returns `Ok(true)`
-            let event = read()?;
-
-            println!("Event::{:?}\r", event);
-
-            if event == Event::Key(KeyCode::Char('c').into()) {
-                println!("Cursor position: {:?}\r", position());
-            }
-
-            if event == Event::Key(KeyCode::Esc.into()) {
-                break;
-            }
-        } else {
-            // Timeout expired, no event for 1s
-            println!(".\r");
-        }
-    }
-
-    Ok(())
-}
-
-pub fn input_formatted() -> Result<()> {
+    let characters: Vec<String> = vec!["←".to_string(), "<".to_string(), "-".to_string(), ">".to_string(), "→".to_string()];
     
     let mut input_string: Vec<String> = Vec::new();
     let mut last_len = 0;
     let mut cursor: isize = 0;
+    let mut show_math_characters = true;
 
     loop {
         // Wait up to 1s for another event
@@ -62,13 +33,55 @@ pub fn input_formatted() -> Result<()> {
 
                     if let KeyCode::Char(c) = key_event.code {
                         if let KeyModifiers::CONTROL = key_event.modifiers {
-                            if key_event.code == KeyCode::Char('a') {
-                                input_string.insert(cursor as usize, "∧".to_string());
+                            if key_event.code == KeyCode::Char('a') || key_event.code == KeyCode::Char('A') {
+                                if show_math_characters {
+                                    input_string.insert(cursor as usize, "∧".to_string());
+                                } else {
+                                    input_string.insert(cursor as usize, "+".to_string());
+                                }
                                 cursor += 1;
-                            } else if key_event.code == KeyCode::Char('v') {
-                                input_string.insert(cursor as usize, '∨'.to_string());
+                            } else if key_event.code == KeyCode::Char('v') || key_event.code == KeyCode::Char('V') {
+                                if show_math_characters {
+                                    input_string.insert(cursor as usize, "∨".to_string());
+                                } else {
+                                    input_string.insert(cursor as usize, "*".to_string());
+                                }
                                 cursor += 1;
+                            } else if key_event.code == KeyCode::Char('z') || key_event.code == KeyCode::Char('Z') {
+                                show_math_characters = !show_math_characters;
+
+                                let mut temp_cursor = 0;
+                                loop {
+                                    if input_string[temp_cursor] == "∧" && !show_math_characters {
+                                        input_string[temp_cursor] = "+".to_string();
+                                    } else if input_string[temp_cursor] == "∨" && !show_math_characters {
+                                        input_string[temp_cursor] = "*".to_string();
+                                    } else if input_string[temp_cursor] == "+" && show_math_characters {
+                                        input_string[temp_cursor] = "∧".to_string();
+                                    } else if input_string[temp_cursor] == "*" && show_math_characters {
+                                        input_string[temp_cursor] = "∨".to_string();
+                                    }
+                                    
+                                    temp_cursor += 1;
+                                    if temp_cursor >= input_string.len() {
+                                        break;
+                                    }
+                                }
                             }
+                        } else if key_event.code == KeyCode::Char('+') {
+                            if show_math_characters {
+                                input_string.insert(cursor as usize, "∧".to_string());
+                            } else {
+                                input_string.insert(cursor as usize, "+".to_string());
+                            }
+                            cursor += 1;
+                        } else if key_event.code == KeyCode::Char('*') {
+                            if show_math_characters {
+                                input_string.insert(cursor as usize, "∨".to_string());
+                            } else {
+                                input_string.insert(cursor as usize, "*".to_string());
+                            }
+                            cursor += 1;
                         } else {
                             if c == '<' || c == '>' || c == '-' {
                                 check_arrows = true;   
@@ -78,12 +91,14 @@ pub fn input_formatted() -> Result<()> {
                             cursor += 1;
                         }
                     } else if KeyCode::Backspace == key_event.code && cursor > 0{
+                        check_arrows = true;
                         input_string.remove(cursor as usize - 1);
                         cursor -= 1;
                     } else if KeyCode::Delete == key_event.code && cursor < input_string.len() as isize {
+                        check_arrows = true;
                         input_string.remove(cursor as usize);
                     } else if KeyCode::Enter == key_event.code {
-                        //input_string
+                        return Ok(input_string);
                     } else if KeyCode::Left == key_event.code {
                         cursor -= 1;
                     } else if KeyCode::Right == key_event.code {
@@ -91,6 +106,8 @@ pub fn input_formatted() -> Result<()> {
                         if cursor > input_string.len() as isize {
                             cursor = input_string.len() as isize;
                         }
+                    } else if KeyCode::Esc == key_event.code {
+                        break;
                     }
 
                     if cursor < 0 {
@@ -108,29 +125,32 @@ pub fn input_formatted() -> Result<()> {
 
                         loop {
                             if temp_cursor < input_string.len() {
+                                let mut found_this_char = false;
+
                                 if input_string[temp_cursor] == "←" {
+                                    if left_bracket >= 0 {
+                                        left_bracket = -1;
+                                    }
                                     left_arrow = temp_cursor as isize;
+                                    found_this_char = true;
                                 } else if input_string[temp_cursor] == "<" {
                                     left_bracket = temp_cursor as isize;
+                                    found_this_char = true;
                                 } else if input_string[temp_cursor] == "-" {
                                     minus = temp_cursor as isize;
+                                    found_this_char = true;
                                 } else if input_string[temp_cursor] == ">" {
                                     right_bracket = temp_cursor as isize;
+                                    found_this_char = true;
                                 } else if input_string[temp_cursor] == "→" {
                                     right_arrow = temp_cursor as isize;
-                                } else if input_string[temp_cursor] != " " {
-                                    left_arrow = -1;
-                                    left_bracket = -1;
-                                    minus = -1;
-                                    right_bracket = -1;
-                                    right_arrow = -1;
+                                    found_this_char = true;
                                 }
-
                                 if minus >= 0 && right_bracket >= 0 {
                                     let mut double = false;
                                     let mut min = minus;
                                     let mut max = right_bracket;
-                                    if left_bracket >= 0 {
+                                    if left_bracket >= 0 && left_bracket < minus {
                                         double = true;
                                         min = left_bracket;
                                     }
@@ -158,8 +178,8 @@ pub fn input_formatted() -> Result<()> {
                                     right_bracket = -1;
                                     left_bracket = -1;
 
-                                    temp_cursor = 0;
-                                } else if left_bracket >= 0 && right_arrow >= 0 {
+                                    temp_cursor = min as usize;
+                                } else if left_bracket >= 0 && right_arrow >= 0 && left_bracket < right_arrow{
 
                                     //remove all characters from max to min
                                     for _ in left_bracket+1..right_arrow {
@@ -177,6 +197,19 @@ pub fn input_formatted() -> Result<()> {
                                     left_bracket = -1;
 
                                     temp_cursor = 0;
+                                } else if (!found_this_char && characters.contains(&input_string[temp_cursor])) || temp_cursor == input_string.len() - 1 {
+
+                                    //if left_arrow is not -1
+                                    if left_arrow >= 0 && right_arrow < 0 {
+                                        input_string.remove(left_arrow as usize);
+                                        cursor -= 1;
+                                        temp_cursor = left_arrow as usize;                                        
+                                    }
+                                    left_arrow = -1;
+                                    left_bracket = -1;
+                                    minus = -1;
+                                    right_bracket = -1;
+                                    right_arrow = -1;
                                 }
 
 
@@ -196,34 +229,48 @@ pub fn input_formatted() -> Result<()> {
                     stdout().flush()?;
                 }
             }
+        }
+    }
+    return Ok(Vec::<String>::new());
+}
 
-            //println!("Event::{:?}\r", event);
+pub fn bool_confirm(message: &str, default: bool) -> Result<bool> {
+    let mut input_suggestion = "";
+    if default {
+        input_suggestion = "Y/n";
+    } else {
+        input_suggestion = "y/N";
+    }
+    print!("{} ({}) ", message, input_suggestion);
+    stdout().flush()?;
 
-            /*if event == Event::Key(KeyCode::Char('c').into()) {
-                println!("Cursor position: {:?}\r", position());
-            }*/
+    
+    loop {
+        // Wait up to 1s for another event
+        if poll(Duration::from_millis(1_000))? {
 
-            if event == Event::Key(KeyCode::Esc.into()) {
-                break;
+            let event = read()?;
+
+            if let Event::Key(key_event) = event {
+                if key_event.kind == KeyEventKind::Press {
+                    if let KeyCode::Char(c) = key_event.code {
+                        if c == 'y' || c == 'Y' {
+                            println!("{}", 'Y');
+                            return Ok(true);
+                        } else if c == 'n' || c == 'N' {
+                            println!("{}", 'N');
+                            return Ok(false);
+                        }
+                    } else if KeyCode::Enter == key_event.code {
+                        if default {
+                            println!("{}", 'Y');
+                        } else {
+                            println!("{}", 'N');
+                        }
+                        return Ok(default);
+                    }
+                }
             }
         }
     }
-    Ok(())
 }
-
-/*fn main() -> Result<()> {
-    println!("{}", HELP);
-
-    enable_raw_mode()?;
-
-    let mut stdout = stdout();
-    execute!(stdout, EnableMouseCapture)?;
-
-    if let Err(e) = print_events() {
-        println!("Error: {:?}\r", e);
-    }
-
-    execute!(stdout, DisableMouseCapture)?;
-
-    disable_raw_mode()
-}*/
