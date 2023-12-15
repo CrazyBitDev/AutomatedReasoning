@@ -244,7 +244,6 @@ pub fn bool_confirm(message: &str, default: bool) -> Result<bool> {
     print!("{} ({}) ", message, input_suggestion);
     stdout().flush()?;
 
-    
     loop {
         // Wait up to 1s for another event
         if poll(Duration::from_millis(1_000))? {
