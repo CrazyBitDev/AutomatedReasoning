@@ -1,7 +1,7 @@
 use crate::classes::clause::Clause;
 use crate::files;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub struct Formula {
     pub clauses: Vec<Clause>,
@@ -9,6 +9,8 @@ pub struct Formula {
     pub num_clauses: u32,
 
     pub literal_map: HashMap<i32, String>,
+
+    pub formula_string: Vec<String>,
 }
 
 impl Formula {
@@ -18,6 +20,8 @@ impl Formula {
             num_variables: 0,
             num_clauses: 0,
             literal_map: HashMap::new(),
+
+            formula_string: Vec::new()
         }
     }
 
@@ -56,5 +60,55 @@ impl Formula {
                 Err(()) => continue,
             };
         }
+    }
+
+    pub fn add_clause_by_string(&mut self, clause_string: String) -> Result<(), ()>{
+        let mut clause = Clause::new();
+        match clause.load_string(clause_string) {
+            Ok(()) => {
+                self.clauses.push(clause);
+                return Ok(());
+            },
+            Err(e) => return Err(()),
+        };
+    }
+
+    pub fn calculate_stats(&mut self) {
+
+        let mut variables = HashSet::new();
+
+        for clause in &self.clauses {
+            for literal in &clause.literals {
+                variables.insert(literal.abs());
+            }
+        }
+
+        self.num_variables = variables.len() as u32;
+        self.num_clauses = self.clauses.len() as u32;
+    }
+
+    pub fn print_cnf(&self) {
+        for clause_idx in 0..self.clauses.len() {
+            if clause_idx != 0 {
+                print!("∧");
+            }
+            print!("(");
+            for literal_idx in 0..self.clauses[clause_idx].literals.len() {
+                if literal_idx != 0 {
+                    print!("∨");
+                }
+                print!("{}", self.clauses[clause_idx].literals[literal_idx]);
+            }
+            print!(")");
+        }
+        println!("\n");
+    }
+
+    pub fn print_dimacs(&self) {
+        println!("p cnf {} {}", self.num_variables, self.num_clauses);
+        for clause in &self.clauses {
+            println!("{} 0", clause.literals.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(" "));
+        }
+        println!("\n");
     }
 }

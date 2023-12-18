@@ -1,13 +1,23 @@
-use std::{self, io::stdout, io::Write, time::Duration, io::Result};
+use std::{self, io::stdout, io::Write, time::Duration};
 
 use crossterm::{
     cursor::position,
-    event::{poll, read, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
+    event::{poll, read, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode},
 };
 
-pub fn input_formatted() -> Result<Vec<String>> {
+use terminal_menu::{menu, label, button, has_exited, run, mut_menu, TerminalMenuItem};
+
+pub fn input(message: &str) -> Result<String, std::io::Error> {
+    print!("\n\n{}", message);
+    stdout().flush()?;
+    let mut input_string = String::new();
+    std::io::stdin().read_line(&mut input_string)?;
+    return Ok(input_string.trim().to_string());
+}
+
+pub fn input_formatted() -> Result<Vec<String>, std::io::Error> {
 
     let characters: Vec<String> = vec!["←".to_string(), "<".to_string(), "-".to_string(), ">".to_string(), "→".to_string()];
     
@@ -98,6 +108,7 @@ pub fn input_formatted() -> Result<Vec<String>> {
                         check_arrows = true;
                         input_string.remove(cursor as usize);
                     } else if KeyCode::Enter == key_event.code {
+                        println!("");
                         return Ok(input_string);
                     } else if KeyCode::Left == key_event.code {
                         cursor -= 1;
@@ -220,21 +231,46 @@ pub fn input_formatted() -> Result<Vec<String>> {
                         }
                     }
 
-                    print!("\r{}", input_string.join(""));
+                    print!("\r> {}", input_string.join(""));
                     if last_len > input_string.len() {
                         print!("{}", " ".repeat(last_len - input_string.len()))
                     }
-                    print!("\r{}", input_string[..cursor as usize].join(""));
+                    print!("\r> {}", input_string[..cursor as usize].join(""));
                     last_len = input_string.len();
                     stdout().flush()?;
                 }
             }
         }
     }
+    println!("");
     return Ok(Vec::<String>::new());
 }
 
-pub fn bool_confirm(message: &str, default: bool) -> Result<bool> {
+pub fn choice_menu(labels: Vec<&str>, choices: Vec<&str>) -> Result<String, ()> {
+    
+    let mut menu_vec: Vec<TerminalMenuItem> = vec![];
+
+    for label in labels {
+        menu_vec.push(terminal_menu::label(label));
+    }
+    menu_vec.push(terminal_menu::label(""));
+    for choice in choices {
+        menu_vec.push(terminal_menu::button(choice));
+    }
+
+    let menu = menu(menu_vec);
+    run(&menu);
+
+    let menu_result = mut_menu(&menu);
+
+    if menu_result.canceled() {
+        return Err(())
+    }
+
+    return Ok(menu_result.selected_item_name().to_string());
+}
+
+pub fn bool_confirm(message: &str, default: bool) -> Result<bool, std::io::Error> {
     let mut input_suggestion = "";
     if default {
         input_suggestion = "Y/n";
@@ -272,4 +308,14 @@ pub fn bool_confirm(message: &str, default: bool) -> Result<bool> {
             }
         }
     }
+    //return E(())
+}
+
+pub fn pause(message: Option<&str>) {
+    let mut wait_message = "Press any key to continue...";
+    if let Some(message) = message {
+        wait_message = message;
+    }
+    press_btn_continue::wait(wait_message).unwrap();
+    println!("\n");
 }

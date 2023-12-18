@@ -18,9 +18,9 @@ impl Clause {
     pub fn load_string(&mut self, literal_string: String) -> Result<(), ()> {
 
         if literal_string.trim().is_empty()
-            || literal_string.trim().chars().next().unwrap().is_alphabetic()
-            || literal_string.trim() == "0"
-            || literal_string.trim().chars().count() == 1 {
+          || literal_string.trim().chars().next().unwrap().is_alphabetic()
+          || literal_string.trim() == "0"
+          || literal_string.trim() == "%" {
             return Err(());
         }
 
