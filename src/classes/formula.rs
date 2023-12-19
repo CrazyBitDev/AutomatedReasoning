@@ -8,7 +8,7 @@ pub struct Formula {
     pub num_variables: u32,
     pub num_clauses: u32,
 
-    pub literal_map: HashMap<i32, String>,
+    pub literal_map: HashMap<usize, String>,
 
     pub formula_string: Vec<String>,
 }
@@ -29,14 +29,14 @@ impl Formula {
         let data = files::read_file(path);
         match data {
             Ok(contents) => {
-                self.load_string(contents);
+                self.load_dimacs(contents);
                 Ok(())
             }
             Err(e) => Err(e),
         }
     }
 
-    pub fn load_string(&mut self, formula_string: String) {
+    pub fn load_dimacs(&mut self, formula_string: String) {
         let mut lines = formula_string.lines();
         //for each line
         for line in &mut lines {

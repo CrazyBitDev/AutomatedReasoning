@@ -1,6 +1,10 @@
 pub mod classes;
+pub mod consts;
+
 pub mod input;
 pub mod files;
+pub mod parser;
+pub mod tools;
 
 use std::vec;
 
@@ -82,15 +86,24 @@ fn main() {
                                     match input::input_formatted() {
                                         Ok(formula) => {
                                             if formula.len() > 0 {
-                                                println!("Formula: {}", formula.join(""));
+
+                                                match parser::parse(formula) {
+                                                    Ok(formulaObj) => {
+                                                        //println!("Formula: {}", formulaObj.formula_string.join(""));
+                                                    },
+                                                    Err(e) => {
+                                                        eprintln!("Error: {:?}", e);
+                                                    }
+                                                }
                                             } else {
-                                                println!("Formula: <empty>");
+                                                eprintln!("Formula: <empty>");
                                             }
                                         },
                                         Err(e) => {
                                             eprintln!("Error: {:?}", e);
                                         }
-                                    }
+                                    };
+
 
                                 } else if choice == "DIMACS" {
                                     println!("To write the formula in DIMACS format, you have to write a clauses one per line.");
