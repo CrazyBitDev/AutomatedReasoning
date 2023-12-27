@@ -74,8 +74,8 @@ fn main() {
                                     println!("The literals can be separated by spaces, but it's not necessary.");
                                     println!("\n");
                                     println!("Between the literals, you can use the following operators:");
-                                    println!("∧ (AND): ctrl-a, *");
-                                    println!("∨ (OR): ctrl-o, +");
+                                    println!("∧ (AND): ctrl-a, *, &");
+                                    println!("∨ (OR): ctrl-o, +, |");
                                     println!("¬ (NOT): ctrl-n, -");
                                     println!("→ (IMPLIES): ctrl-i, ->");
                                     println!("↔ (IFF): ctrl-f, <->");

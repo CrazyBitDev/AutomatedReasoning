@@ -269,4 +269,5 @@ fn cnf_converter(formula: &mut FormulaNode) {
     cnf::if_solver(formula);
     cnf::not_solver(formula);
     tools::clear_parenthesis(formula);
+    cnf::distributivity_solver(formula);
 }

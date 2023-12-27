@@ -59,3 +59,11 @@ pub fn not_solver(formula: &mut FormulaNode) {
         }
     }, true)
 }
+
+pub fn distributivity_solver(formula: &mut FormulaNode) {
+    formula.iter_child(|parent| {
+        if parent.children_len() > 0 {
+            
+        }
+    }, true);
+}
