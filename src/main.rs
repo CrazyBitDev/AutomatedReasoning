@@ -9,6 +9,7 @@ pub mod tools;
 use std::vec;
 
 pub use crate::classes::solver::Solver;
+pub use crate::consts::sat::SAT;
 
 fn main() {
 
@@ -153,7 +154,28 @@ fn main() {
                 } else if choice == "Clear formula" {
                     solver.reset();
                 } else if choice == "Solve" {
-                    //solver.solve();
+                    solver.reset_solve();
+                    match solver.solve() {
+                        Ok(sat) => {
+                            match sat {
+                                SAT::Satisfiable => {
+                                    println!("The formula is satisfiable!");
+                                    println!("The following instance satisfies the formula:");
+                                    solver.print_instance();
+                                },
+                                SAT::Unsatisfiable => {
+                                    println!("The formula is unsatisfiable!");
+                                },
+                                SAT::Unknown => {
+                                    println!("The formula is unknown!");
+                                },
+                            }
+                            input::pause(Option::None);
+                        },
+                        Err(e) => {
+                            eprintln!("Error: {:?}", e);
+                        }
+                    }
                 } else if choice == "Print" {
                     //solver.formula.print_stats();
 

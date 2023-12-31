@@ -5,5 +5,7 @@ edition = "2021"
 
 [dependencies]
 crossterm = "0.27.0"
+petgraph = "0.6.4"
 press-btn-continue = "0.2.0"
+sorted-list = "0.2.0"
 terminal-menu = "3.0.0"
