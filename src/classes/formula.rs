@@ -1,4 +1,4 @@
-use crate::classes::clause::Clause;
+use crate::{classes::clause::Clause, consts::sat::SAT};
 use crate::files;
 
 use std::collections::{HashMap, HashSet};
@@ -78,14 +78,56 @@ impl Formula {
         let mut variables = HashSet::new();
 
         for clause in &self.clauses {
-            for literal in &clause.literals {
-                variables.insert(literal.abs());
-            }
+            variables.extend(clause.iter_literals().map(|x| x.abs()));
         }
 
         self.num_variables = variables.len() as u32;
         self.num_clauses = self.clauses.len() as u32;
     }
+
+    pub fn get_all_watched_literals(&self) -> Vec<isize> {
+
+        //create a map of literals where the value is the number of times the literal appears in unsatisfied clauses (the key is the absolute value of the literal)
+        let mut literals: Vec<isize> = Vec::new();
+
+        for clause in &self.clauses {
+            if !clause.is_satisfied() {
+                let literal_tuple = clause.get_watched_literals();
+                literals.push(literal_tuple.0);
+                if literal_tuple.0 != literal_tuple.1 {
+                    literals.push(literal_tuple.1);
+                }
+            }
+        }
+        return literals;
+
+    }
+
+
+
+
+    pub fn get_next_unit_clause_literal(&self, instance: &Vec<isize>) -> Option<isize> {
+        for clause in &self.clauses {
+            if clause.is_unit_clause() && !instance.contains(&clause.get_watched_literals().0) {
+                return Some(clause.get_watched_literals().0);
+            }
+        }
+        None
+    }
+
+    pub fn is_satisfied(&mut self, instance: &Vec<isize>) -> SAT {
+        let mut satisfied = SAT::Satisfiable;
+        for clause in &mut self.clauses {
+            match clause.is_satisfied_by_instance(instance) {
+                SAT::Satisfiable => continue,
+                SAT::Unknown => satisfied = SAT::Unknown,
+                SAT::Unsatisfiable => return SAT::Unsatisfiable, //conflict
+            }
+        }
+        satisfied
+    }
+
+
 
     pub fn print_cnf(&self) {
         for clause_idx in 0..self.clauses.len() {
@@ -93,11 +135,11 @@ impl Formula {
                 print!("∧");
             }
             print!("(");
-            for literal_idx in 0..self.clauses[clause_idx].literals.len() {
+            for literal_idx in 0..self.clauses[clause_idx].literals_len() {
                 if literal_idx != 0 {
                     print!("∨");
                 }
-                print!("{}", self.clauses[clause_idx].literals[literal_idx]);
+                print!("{}", self.clauses[clause_idx].get_literal(literal_idx));
             }
             print!(")");
         }
@@ -107,7 +149,7 @@ impl Formula {
     pub fn print_dimacs(&self) {
         println!("p cnf {} {}", self.num_variables, self.num_clauses);
         for clause in &self.clauses {
-            println!("{} 0", clause.literals.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(" "));
+            println!("{} 0", clause.iter_literals().map(|x| x.to_string()).collect::<Vec<String>>().join(" "));
         }
         println!("\n");
     }

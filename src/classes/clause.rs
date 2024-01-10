@@ -1,9 +1,12 @@
 use std::collections::HashMap;
 use std::cmp;
+use std::slice::Iter;
+
+use crate::consts::sat::SAT;
 
 pub struct Clause {
-    pub literals: Vec<i32>,
-    pub is_satisfied: bool,
+    literals: Vec<isize>,
+    pub satisfied: bool,
     pub is_always_satisfied: bool,
 
     pub two_watched_literals: (usize, usize),
@@ -13,7 +16,7 @@ impl Clause {
     pub fn new() -> Clause {
         Clause {
             literals: Vec::new(),
-            is_satisfied: false,
+            satisfied: false,
             is_always_satisfied: false,
 
             two_watched_literals: (0, 0),
@@ -39,22 +42,38 @@ impl Clause {
         Ok(())
     }
 
-    pub fn load_vec(&mut self, literals: Vec<i32>) {
+    pub fn load_vec(&mut self, literals: Vec<isize>) {
         self.literals = literals;
         self.check_literals();
     }
 
-    pub fn add_literal(&mut self, literal: i32) {
+    pub fn add_literal(&mut self, literal: isize) {
         self.literals.push(literal);
         self.check_literals();
     }
-    pub fn remove_literal(&mut self, literal: i32) {
+    pub fn remove_literal(&mut self, literal: isize) {
         self.literals.retain(|&x| x != literal);
         self.check_literals();
     }
+    pub fn literals_len(&self) -> usize {
+        self.literals.len()
+    }
+    pub fn get_literal(&self, idx: usize) -> isize {
+        self.literals[idx]
+    }
+    pub fn iter_literals(&self) -> Iter<isize> {
+        return self.literals.iter();
+    }
 
-    fn is_unit_clause(&self) -> bool {
+    pub fn is_unit_clause(&self) -> bool {
         self.two_watched_literals.0 == self.two_watched_literals.1
+    }
+    
+    pub fn is_satisfied(&self) -> bool {
+        return self.satisfied;
+    }
+    pub fn reset_satisfied(&mut self) {
+        self.satisfied = false;
     }
 
     fn get_watched_literal_idx(&self, idx: usize) -> usize {
@@ -71,6 +90,10 @@ impl Clause {
             self.two_watched_literals.1 = value;
         }
     }
+    
+    pub fn get_watched_literals(&self) -> (isize, isize) {
+        (self.literals[self.two_watched_literals.0], self.literals[self.two_watched_literals.1])
+    }
 
     fn check_literals(&mut self) {
         // if the clause contains a literal and its negation, the clause is always satisfied
@@ -85,59 +108,59 @@ impl Clause {
         }
     }
 
-    fn check_literal_is_satisfied(&mut self, literal_idx: usize, instance: &mut Vec<i32>) -> Result<bool, ()> {
+    fn check_literal_is_satisfied(&mut self, literal_idx: usize, instance: &Vec<isize>) -> SAT {
 
         if instance.contains(&self.literals[literal_idx]) {
-            return Ok(true);
+            return SAT::Satisfiable;
         } else if instance.contains(&(self.literals[literal_idx] * -1)) {
-            return Err(()); // conflict
+            return SAT::Unsatisfiable; // conflict
         }
 
-        return Ok(false);
+        return SAT::Unknown;
     }
 
-    pub fn check_satisfied(&mut self, instance: &mut Vec<i32>, force_check: bool) -> Result<bool, ()> {
-        if self.is_always_satisfied || (self.is_satisfied && !force_check) {
-            return Ok(true);
+    pub fn is_satisfied_by_instance(&mut self, instance: &Vec<isize>) -> SAT {
+        if self.is_always_satisfied || self.satisfied {
+            return SAT::Satisfiable;
         }
 
         // two-watched literal propagation
         if self.is_unit_clause() {
-            match self.check_literal_is_satisfied(self.get_watched_literal_idx(0), instance) {
-                Ok(is_satisfied) => {
-                    self.is_satisfied = is_satisfied;
-                    return Ok(is_satisfied);
-                },
-                Err(()) => {
-                    return Err(());
-                }
-            }
+            println!("Analyzing unit clause");
+            let is_satisfied = self.check_literal_is_satisfied(self.get_watched_literal_idx(0), instance);
+            self.satisfied = is_satisfied == SAT::Satisfiable;
+            return is_satisfied;
         } else {
+            println!("Analyzing clause");
             'two_watched_literals_loop: loop {
                 for i in 0..2 {
                     match self.check_literal_is_satisfied(self.get_watched_literal_idx(i), instance) {
-                        Ok(is_satisfied) => {
-                            if is_satisfied {
-                                self.is_satisfied = true;
-                                return Ok(true);
-                            }
+                        SAT::Satisfiable => {
+                            self.satisfied = true;
+                            return SAT::Satisfiable;
                         },
-                        Err(()) => {
-                            
+                        SAT::Unsatisfiable => {
                             let max = cmp::max(self.get_watched_literal_idx(0), self.get_watched_literal_idx(1));
                             if max == self.literals.len() - 1 {
-                                return Err(());
+                                if i == 0 {
+                                    self.set_watched_literal_idx(i, max);
+                                } else if self.get_watched_literal_idx(1) > self.get_watched_literal_idx(0) {
+                                    return SAT::Unknown;
+                                } else {
+                                    return SAT::Unsatisfiable;
+                                }
                             } else {
                                 self.set_watched_literal_idx(i, max + 1);
                                 continue 'two_watched_literals_loop;
                             }
                             
-                        }
+                        },
+                        SAT::Unknown => (),
                     }
                 }
                 break;
             }
-            return Ok(false);
+            return SAT::Unknown;
         }
     }
 
