@@ -159,11 +159,15 @@ impl Clause {
 
     fn check_literal_is_satisfied(&mut self, literal_idx: usize, instance: &Vec<isize>) -> SAT {
 
-        if instance.contains(&self.literals[literal_idx]) {
-            return SAT::Satisfiable;
-        } else if instance.contains(&(self.literals[literal_idx] * -1)) {
-            return SAT::Unsatisfiable; // conflict
+        //loop instance
+        for literal in instance {
+            if self.literals[literal_idx] == *literal {
+                return SAT::Satisfiable;
+            } else if self.literals[literal_idx] == -*literal {
+                return SAT::Unsatisfiable; // conflict
+            }
         }
+
 
         return SAT::Unknown;
     }

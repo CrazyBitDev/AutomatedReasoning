@@ -1,4 +1,4 @@
-use std::{self, io::stdout, io::Write, time::Duration};
+use std::{self, io::{stdin, stdout, Read, Write}, time::Duration};
 
 use crossterm::{
     cursor::position,
@@ -316,6 +316,14 @@ pub fn pause(message: Option<&str>) {
     if let Some(message) = message {
         wait_message = message;
     }
-    press_btn_continue::wait(wait_message).unwrap();
+    
+    println!("{}", wait_message);
+
+    let mut buffer = String::new();
+
+    std::io::stdin()
+        .read_line(&mut buffer)
+        .expect("Failed to read line");
+
     println!("\n");
 }

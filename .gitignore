@@ -1,2 +1,4 @@
 /target
 *.dot
+perf.data
+perf.data.**

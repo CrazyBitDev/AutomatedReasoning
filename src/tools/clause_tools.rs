@@ -14,9 +14,7 @@ pub fn clauses_are_satisfied(clauses: &mut Vec<Clause>, instance: &Vec<isize>, d
     let mut satisfied = SAT::Satisfiable;
     let increase_idx = increase_idx.unwrap_or(0);
     for (idx, clause) in &mut clauses.iter_mut().enumerate() {
-        let is_sat = clause.is_satisfied_by_instance(instance, decision_level);
-        println!("Clause {} is sat: {:?}", clause, is_sat);
-        match is_sat {
+        match clause.is_satisfied_by_instance(instance, decision_level) {
             SAT::Satisfiable => continue,
             SAT::Unknown => satisfied = SAT::Unknown,
             SAT::Unsatisfiable => {

@@ -8,7 +8,6 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "crossterm 0.27.0",
- "press-btn-continue",
  "rand",
  "sorted-list",
  "terminal-menu",
@@ -255,12 +254,6 @@ name = "ppv-lite86"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
-
-[[package]]
-name = "press-btn-continue"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea399120e7666ff7299eff8f5a6cbf7f9be5e83ad7827be6bbc707481aad4e23"
 
 [[package]]
 name = "proc-macro2"
