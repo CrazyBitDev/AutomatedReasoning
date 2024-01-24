@@ -1,13 +1,17 @@
 use std::collections::HashMap;
-use std::cmp;
+use std::{cmp, fmt, ops};
 use std::slice::Iter;
 
-use crate::consts::sat::SAT;
+use crate::consts::{sat::SAT, operators::OR};
 
+use super::decision::Decision;
+
+#[derive(Clone)]
 pub struct Clause {
     literals: Vec<isize>,
-    pub satisfied: bool,
+    pub satisfied: Option<usize>,
     pub is_always_satisfied: bool,
+    pub satisfied_somewhere: bool,
 
     pub two_watched_literals: (usize, usize),
 }
@@ -16,8 +20,9 @@ impl Clause {
     pub fn new() -> Clause {
         Clause {
             literals: Vec::new(),
-            satisfied: false,
+            satisfied: None,
             is_always_satisfied: false,
+            satisfied_somewhere: false,
 
             two_watched_literals: (0, 0),
         }
@@ -61,6 +66,11 @@ impl Clause {
     pub fn get_literal(&self, idx: usize) -> isize {
         self.literals[idx]
     }
+
+    pub fn contains_literal(&self, literal: isize) -> bool {
+        self.literals.contains(&literal)
+    }
+
     pub fn iter_literals(&self) -> Iter<isize> {
         return self.literals.iter();
     }
@@ -70,10 +80,39 @@ impl Clause {
     }
     
     pub fn is_satisfied(&self) -> bool {
-        return self.satisfied;
+        return self.satisfied.is_some() || self.is_always_satisfied || self.satisfied_somewhere;
     }
-    pub fn reset_satisfied(&mut self) {
-        self.satisfied = false;
+
+    pub fn is_satisfied_somewhere(&self) -> bool {
+        return self.satisfied_somewhere;
+    }
+
+    pub fn set_is_satisfied_somewhere(&mut self, value: bool) {
+        self.satisfied_somewhere = value;
+    }
+
+    pub fn reset_satisfied(&mut self, current_decision_level: usize) -> bool{
+
+        if let Some(satisfied_level) = self.satisfied {
+            if satisfied_level >= current_decision_level {
+                self.satisfied = None;
+                self.two_watched_literals.0 = 0;
+                if self.literals.len() > 1 {
+                    self.two_watched_literals.1 = 1;
+                } else {
+                    self.two_watched_literals.1 = 0;
+                }
+                return true;
+            }
+        } else {
+            self.two_watched_literals.0 = 0;
+            if self.literals.len() > 1 {
+                self.two_watched_literals.1 = 1;
+            } else {
+                self.two_watched_literals.1 = 0;
+            }
+        }
+        return false;
     }
 
     fn get_watched_literal_idx(&self, idx: usize) -> usize {
@@ -89,6 +128,11 @@ impl Clause {
         } else {
             self.two_watched_literals.1 = value;
         }
+        if self.two_watched_literals.0 > self.two_watched_literals.1 {
+            let temp = self.two_watched_literals.0;
+            self.two_watched_literals.0 = self.two_watched_literals.1;
+            self.two_watched_literals.1 = temp;
+        }
     }
     
     pub fn get_watched_literals(&self) -> (isize, isize) {
@@ -96,7 +140,12 @@ impl Clause {
     }
 
     fn check_literals(&mut self) {
+        // order by absolute value
+        self.literals.sort_by(|a, b| a.abs().cmp(&b.abs()));
+        // remove duplicates
+        self.literals.dedup();
         // if the clause contains a literal and its negation, the clause is always satisfied
+        self.is_always_satisfied = false;
         for literal in &self.literals {
             if self.literals.contains(&-literal) {
                 self.is_always_satisfied = true;
@@ -119,40 +168,44 @@ impl Clause {
         return SAT::Unknown;
     }
 
-    pub fn is_satisfied_by_instance(&mut self, instance: &Vec<isize>) -> SAT {
-        if self.is_always_satisfied || self.satisfied {
+    pub fn is_satisfied_by_instance(&mut self, instance: &Vec<isize>, decision_level: usize) -> SAT {
+        if self.is_always_satisfied || self.satisfied.is_some() || self.satisfied_somewhere {
             return SAT::Satisfiable;
         }
 
         // two-watched literal propagation
         if self.is_unit_clause() {
-            println!("Analyzing unit clause");
+            //println!("Testing unit clause: {}", self.get_literal(self.get_watched_literal_idx(0)));
             let is_satisfied = self.check_literal_is_satisfied(self.get_watched_literal_idx(0), instance);
-            self.satisfied = is_satisfied == SAT::Satisfiable;
+            if is_satisfied == SAT::Satisfiable {
+                self.satisfied = Some(decision_level);
+            }
             return is_satisfied;
         } else {
-            println!("Analyzing clause");
+            //print!("Testing clause: ");
+            //self.print();
             'two_watched_literals_loop: loop {
                 for i in 0..2 {
                     match self.check_literal_is_satisfied(self.get_watched_literal_idx(i), instance) {
                         SAT::Satisfiable => {
-                            self.satisfied = true;
+                            self.satisfied = Some(decision_level);
                             return SAT::Satisfiable;
                         },
                         SAT::Unsatisfiable => {
+                            if self.is_unit_clause() {
+                                return SAT::Unsatisfiable;
+                            }
                             let max = cmp::max(self.get_watched_literal_idx(0), self.get_watched_literal_idx(1));
                             if max == self.literals.len() - 1 {
                                 if i == 0 {
                                     self.set_watched_literal_idx(i, max);
-                                } else if self.get_watched_literal_idx(1) > self.get_watched_literal_idx(0) {
-                                    return SAT::Unknown;
                                 } else {
-                                    return SAT::Unsatisfiable;
+                                    self.set_watched_literal_idx(i, self.get_watched_literal_idx(0));
                                 }
                             } else {
                                 self.set_watched_literal_idx(i, max + 1);
-                                continue 'two_watched_literals_loop;
                             }
+                            continue 'two_watched_literals_loop;
                             
                         },
                         SAT::Unknown => (),
@@ -162,6 +215,27 @@ impl Clause {
             }
             return SAT::Unknown;
         }
+    }
+
+
+    pub fn is_assertion_clause(&self, decisions: &Vec<Decision>) -> bool {
+        for literal in &self.literals {
+            if !decisions.contains(&Decision::new(*literal)) && !decisions.contains(&Decision::new(-*literal)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    pub fn get_common_literals(&self, other: &Clause) -> Vec<isize> {
+        //find common literals
+        let mut common_literals: Vec<isize> = Vec::new();
+        for literal in &self.literals {
+            if other.literals.contains(literal) {
+                common_literals.push(*literal);
+            }
+        }
+        return common_literals;
     }
 
     pub fn print(&self) {
@@ -175,5 +249,31 @@ impl Clause {
             .map(|&literal| literal_map.get(&(literal.abs() as u32)).unwrap().clone())
             .collect();
         println!("{}", literals_str.join(" "));
+    }
+}
+
+impl fmt::Display for Clause {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let literals_str: Vec<String> = self.literals.iter().map(|&literal| literal.to_string()).collect();
+        write!(f, "{}", literals_str.join(&format!(" {} ", OR)))
+    }
+}
+
+impl cmp::PartialEq for Clause {
+    fn eq(&self, other: &Self) -> bool {
+        self.literals == other.literals
+    }
+}
+
+//implement the operator +, to merge two clauses
+impl ops::Add for Clause {
+    type Output = Clause;
+
+    fn add(self, other: Clause) -> Clause {
+        let mut new_clause = Clause::new();
+        new_clause.literals = self.literals.clone();
+        new_clause.literals.extend(other.literals.clone());
+        new_clause.check_literals();
+        return new_clause;
     }
 }

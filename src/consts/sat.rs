@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum SAT {
     Satisfiable,
     Unsatisfiable,
@@ -25,5 +25,24 @@ impl PartialEq for SAT {
             (Self::Unknown, Self::Unknown) => true,
             _ => false,
         }
+    }
+}
+
+impl std::ops::Add for SAT {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::Satisfiable, Self::Satisfiable) => Self::Satisfiable,
+            (_, Self::Unsatisfiable) => Self::Unsatisfiable,
+            (Self::Unsatisfiable, _) => Self::Unsatisfiable,
+            _ => Self::Unknown,
+        }
+    }
+}
+
+impl std::ops::AddAssign for SAT {
+    fn add_assign(&mut self, other: Self) {
+        *self = *self + other;
     }
 }

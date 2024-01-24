@@ -1,12 +1,13 @@
+use std::slice::Iter;
+use std::collections::{HashMap, HashSet};
+
 use crate::{classes::clause::Clause, consts::sat::SAT};
 use crate::files;
 
-use std::collections::{HashMap, HashSet};
-
 pub struct Formula {
     pub clauses: Vec<Clause>,
-    pub num_variables: u32,
-    pub num_clauses: u32,
+    pub num_variables: usize,
+    pub num_clauses: usize,
 
     pub literal_map: HashMap<usize, String>,
 
@@ -73,6 +74,27 @@ impl Formula {
         };
     }
 
+    pub fn get_clause(&self, clause_idx: usize) -> &Clause {
+        &self.clauses[clause_idx]
+    }
+    pub fn get_mut_clause(&mut self, clause_idx: usize) -> &mut Clause {
+        self.clauses.get_mut(clause_idx).unwrap()
+    }
+
+    pub fn get_clauses(&self) -> &Vec<Clause> {
+        &self.clauses
+    }
+    pub fn get_mut_clauses(&mut self) -> &mut Vec<Clause> {
+        &mut self.clauses
+    }
+
+    pub fn get_num_variables(&self) -> usize {
+        self.num_variables
+    }
+    pub fn get_num_clauses(&self) -> usize {
+        self.num_clauses
+    }
+
     pub fn calculate_stats(&mut self) {
 
         let mut variables = HashSet::new();
@@ -81,8 +103,8 @@ impl Formula {
             variables.extend(clause.iter_literals().map(|x| x.abs()));
         }
 
-        self.num_variables = variables.len() as u32;
-        self.num_clauses = self.clauses.len() as u32;
+        self.num_variables = variables.len();
+        self.num_clauses = self.clauses.len();
     }
 
     pub fn get_all_watched_literals(&self) -> Vec<isize> {
@@ -106,25 +128,25 @@ impl Formula {
 
 
 
-    pub fn get_next_unit_clause_literal(&self, instance: &Vec<isize>) -> Option<isize> {
-        for clause in &self.clauses {
+    pub fn get_next_unit_clause_literal(&mut self, instance: &Vec<isize>) -> Option<(isize, usize)> {
+        for (clause_idx, clause) in self.clauses.iter_mut().enumerate() {
             if clause.is_unit_clause() && !instance.contains(&clause.get_watched_literals().0) {
-                return Some(clause.get_watched_literals().0);
+                return Some((clause.get_watched_literals().0, clause_idx));
             }
         }
         None
     }
 
-    pub fn is_satisfied(&mut self, instance: &Vec<isize>) -> SAT {
+    pub fn is_satisfied(&mut self, instance: &Vec<isize>, decision_level: usize) -> (SAT, usize) {
         let mut satisfied = SAT::Satisfiable;
-        for clause in &mut self.clauses {
-            match clause.is_satisfied_by_instance(instance) {
+        for (idx, clause) in &mut self.clauses.iter_mut().enumerate() {
+            match clause.is_satisfied_by_instance(instance, decision_level) {
                 SAT::Satisfiable => continue,
                 SAT::Unknown => satisfied = SAT::Unknown,
-                SAT::Unsatisfiable => return SAT::Unsatisfiable, //conflict
+                SAT::Unsatisfiable => return (SAT::Unsatisfiable, idx), //conflict
             }
         }
-        satisfied
+        (satisfied, 0)
     }
 
 

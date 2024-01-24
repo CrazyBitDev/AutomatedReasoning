@@ -11,6 +11,8 @@ use std::vec;
 pub use crate::classes::solver::Solver;
 pub use crate::consts::sat::SAT;
 
+use std::time::{Duration, Instant};
+
 fn main() {
 
     let mut solver = Solver::new();
@@ -155,6 +157,7 @@ fn main() {
                     solver.reset();
                 } else if choice == "Solve" {
                     solver.reset_solve();
+                    let start = Instant::now();
                     match solver.solve() {
                         Ok(sat) => {
                             match sat {
@@ -170,6 +173,7 @@ fn main() {
                                     println!("The formula is unknown!");
                                 },
                             }
+                            println!("Time elapsed in is: {:?}", start.elapsed());
                             input::pause(Option::None);
                         },
                         Err(e) => {
