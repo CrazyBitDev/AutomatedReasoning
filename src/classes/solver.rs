@@ -354,8 +354,6 @@ impl Solver {
             }
         }
 
-
-
         let mut literals = self.formula.get_all_watched_literals();
 
         for clause in &self.learned_clauses {
