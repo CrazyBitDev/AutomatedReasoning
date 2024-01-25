@@ -1,16 +1,17 @@
 use crate::classes::clause::Clause;
+use crate::classes::instance::Instance;
 use crate::consts::sat::SAT;
 
-pub fn get_next_unit_clause_literal<'a>(clauses: &Vec<Clause>, instance: &Vec<isize>) -> Option<(isize, usize)> {
+pub fn get_next_unit_clause_literal<'a>(clauses: &Vec<Clause>, instance: &Instance) -> Option<(isize, usize)> {
     for (clause_idx, clause) in clauses.iter().enumerate() {
-        if clause.is_unit_clause() && !instance.contains(&clause.get_watched_literals().0) && !clause.is_satisfied() {
+        if clause.is_unit_clause() && !instance.has(clause.get_watched_literals().0) && !clause.is_satisfied() {
             return Some((clause.get_watched_literals().0, clause_idx));
         }
     }
     None
 }
 
-pub fn clauses_are_satisfied(clauses: &mut Vec<Clause>, instance: &Vec<isize>, decision_level: usize, increase_idx: Option<usize>) -> (SAT, usize) {
+pub fn clauses_are_satisfied(clauses: &mut Vec<Clause>, instance: &Instance, decision_level: usize, increase_idx: Option<usize>) -> (SAT, usize) {
     let mut satisfied = SAT::Satisfiable;
     let increase_idx = increase_idx.unwrap_or(0);
     for (idx, clause) in &mut clauses.iter_mut().enumerate() {

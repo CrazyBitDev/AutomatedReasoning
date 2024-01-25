@@ -4,6 +4,8 @@ use std::collections::{HashMap, HashSet};
 use crate::{classes::clause::Clause, consts::sat::SAT};
 use crate::files;
 
+use super::instance::Instance;
+
 pub struct Formula {
     pub clauses: Vec<Clause>,
     pub num_variables: usize,
@@ -128,16 +130,16 @@ impl Formula {
 
 
 
-    pub fn get_next_unit_clause_literal(&mut self, instance: &Vec<isize>) -> Option<(isize, usize)> {
+    pub fn get_next_unit_clause_literal(&mut self, instance: &Instance) -> Option<(isize, usize)> {
         for (clause_idx, clause) in self.clauses.iter_mut().enumerate() {
-            if clause.is_unit_clause() && !instance.contains(&clause.get_watched_literals().0) {
+            if clause.is_unit_clause() && !instance.has(clause.get_watched_literals().0) {
                 return Some((clause.get_watched_literals().0, clause_idx));
             }
         }
         None
     }
 
-    pub fn is_satisfied(&mut self, instance: &Vec<isize>, decision_level: usize) -> (SAT, usize) {
+    pub fn is_satisfied(&mut self, instance: &Instance, decision_level: usize) -> (SAT, usize) {
         let mut satisfied = SAT::Satisfiable;
         for (idx, clause) in &mut self.clauses.iter_mut().enumerate() {
             match clause.is_satisfied_by_instance(instance, decision_level) {

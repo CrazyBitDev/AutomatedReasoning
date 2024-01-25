@@ -5,6 +5,7 @@ use std::slice::Iter;
 use crate::consts::{sat::SAT, operators::OR};
 
 use super::decision::Decision;
+use super::instance::Instance;
 
 #[derive(Clone)]
 pub struct Clause {
@@ -157,22 +158,23 @@ impl Clause {
         }
     }
 
-    fn check_literal_is_satisfied(&mut self, literal_idx: usize, instance: &Vec<isize>) -> SAT {
+    fn check_literal_is_satisfied(&mut self, literal_idx: usize, instance: &Instance) -> SAT {
 
         //loop instance
-        for literal in instance {
+        /*for literal in instance {
             if self.literals[literal_idx] == *literal {
                 return SAT::Satisfiable;
             } else if self.literals[literal_idx] == -*literal {
                 return SAT::Unsatisfiable; // conflict
             }
-        }
+        }*/
+        
 
 
         return SAT::Unknown;
     }
 
-    pub fn is_satisfied_by_instance(&mut self, instance: &Vec<isize>, decision_level: usize) -> SAT {
+    pub fn is_satisfied_by_instance(&mut self, instance: &Instance, decision_level: usize) -> SAT {
         if self.is_always_satisfied || self.satisfied.is_some() || self.satisfied_somewhere {
             return SAT::Satisfiable;
         }
@@ -180,7 +182,8 @@ impl Clause {
         // two-watched literal propagation
         if self.is_unit_clause() {
             //println!("Testing unit clause: {}", self.get_literal(self.get_watched_literal_idx(0)));
-            let is_satisfied = self.check_literal_is_satisfied(self.get_watched_literal_idx(0), instance);
+            //let is_satisfied = self.check_literal_is_satisfied(self.get_watched_literal_idx(0), instance);
+            let is_satisfied = instance.satisfies(self.get_literal(self.get_watched_literal_idx(0)));
             if is_satisfied == SAT::Satisfiable {
                 self.satisfied = Some(decision_level);
             }
@@ -190,7 +193,8 @@ impl Clause {
             //self.print();
             'two_watched_literals_loop: loop {
                 for i in 0..2 {
-                    match self.check_literal_is_satisfied(self.get_watched_literal_idx(i), instance) {
+                    //match self.check_literal_is_satisfied(self.get_watched_literal_idx(i), instance) {
+                    match instance.satisfies(self.get_literal(self.get_watched_literal_idx(i))) {
                         SAT::Satisfiable => {
                             self.satisfied = Some(decision_level);
                             return SAT::Satisfiable;
