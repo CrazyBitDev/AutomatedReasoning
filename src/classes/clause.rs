@@ -5,7 +5,7 @@ use std::slice::Iter;
 use crate::consts::{sat::SAT, operators::OR};
 
 use super::decision::Decision;
-use super::instance::Instance;
+use super::model::Model;
 
 #[derive(Clone)]
 pub struct Clause {
@@ -158,7 +158,7 @@ impl Clause {
         }
     }
 
-    pub fn is_satisfied_by_instance(&mut self, instance: &Instance, decision_level: usize) -> SAT {
+    pub fn is_satisfied_by_model(&mut self, model: &Model, decision_level: usize) -> SAT {
         if self.is_always_satisfied || self.satisfied.is_some() {
             return SAT::Satisfiable;
         }
@@ -166,8 +166,8 @@ impl Clause {
         // two-watched literal propagation
         if self.is_unit_clause() {
             //println!("Testing unit clause: {}", self.get_literal(self.get_watched_literal_idx(0)));
-            //let is_satisfied = self.check_literal_is_satisfied(self.get_watched_literal_idx(0), instance);
-            let is_satisfied = instance.satisfies(self.get_literal(self.get_watched_literal_idx(0)));
+            //let is_satisfied = self.check_literal_is_satisfied(self.get_watched_literal_idx(0), model);
+            let is_satisfied = model.satisfies(self.get_literal(self.get_watched_literal_idx(0)));
             if is_satisfied == SAT::Satisfiable {
                 self.satisfied = Some(decision_level);
             }
@@ -177,8 +177,8 @@ impl Clause {
             //self.print();
             'two_watched_literals_loop: loop {
                 for i in 0..2 {
-                    //match self.check_literal_is_satisfied(self.get_watched_literal_idx(i), instance) {
-                    match instance.satisfies(self.get_literal(self.get_watched_literal_idx(i))) {
+                    //match self.check_literal_is_satisfied(self.get_watched_literal_idx(i), model) {
+                    match model.satisfies(self.get_literal(self.get_watched_literal_idx(i))) {
                         SAT::Satisfiable => {
                             self.satisfied = Some(decision_level);
                             return SAT::Satisfiable;

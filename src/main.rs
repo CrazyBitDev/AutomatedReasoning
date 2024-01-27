@@ -163,8 +163,8 @@ fn main() {
                             match sat {
                                 SAT::Satisfiable => {
                                     println!("The formula is satisfiable!");
-                                    println!("The following instance satisfies the formula:");
-                                    solver.print_instance();
+                                    println!("The following model satisfies the formula:");
+                                    solver.print_model();
                                 },
                                 SAT::Unsatisfiable => {
                                     println!("The formula is unsatisfiable!");

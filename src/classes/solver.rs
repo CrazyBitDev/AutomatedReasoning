@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use std::vec;
 
-use crate::classes::{clause::Clause, formula::Formula, decision::Decision, file::File, instance::Instance, stats::Stats};
+use crate::classes::{clause::Clause, formula::Formula, decision::Decision, file::File, model::Model, stats::Stats};
 use crate::tools::clause_tools;
 use crate::consts::sat::SAT;
 
@@ -13,7 +13,7 @@ pub struct Solver {
     current_learned_clause_id: usize,
     max_learned_clauses: usize,
 
-    instance: Instance,
+    model: Model,
 
     decision_level: usize,
     decisions: Vec<Decision>,
@@ -33,7 +33,7 @@ impl Solver {
             current_learned_clause_id: 0,
             max_learned_clauses: 0,
 
-            instance: Instance::new(None),
+            model: Model::new(None),
 
             decision_level: 0,
             decisions: Vec::new(),
@@ -52,7 +52,7 @@ impl Solver {
     }
     
     pub fn reset_solve(&mut self) {
-        self.instance = Instance::new(None);
+        self.model = Model::new(None);
         self.learned_clauses = Vec::new();
         self.decision_level = 0;
         self.decisions = Vec::new();
@@ -106,7 +106,7 @@ impl Solver {
 
         self.decision_level = 0;
         self.decisions = vec![Decision::new(0)];
-        self.instance.resize(self.formula.get_num_variables());
+        self.model.resize(self.formula.get_num_variables());
         self.vsids = vec![(0.0, 0.0); self.formula.get_num_variables()];
         self.current_learned_clause_id = self.formula.get_num_clauses();
         self.max_learned_clauses = self.formula.get_num_clauses() / 2;
@@ -118,14 +118,14 @@ impl Solver {
         'solve_loop: loop {
 
             'unit_clause_loop: loop {
-                let mut instance_changed = false;
+                let mut model_changed = false;
                 'learned_clauses_loop: loop {
-                    match clause_tools::get_next_unit_clause_literal(&mut self.learned_clauses, &self.instance) {
+                    match clause_tools::get_next_unit_clause_literal(&mut self.learned_clauses, &self.model) {
                         Some((literal, clause_idx)) => {
                             let clause_idx = clause_idx + self.formula.get_num_clauses();
-                            self.instance.add(literal);
+                            self.model.add(literal);
                             self.decisions[self.decision_level].add_propagated_literal(literal);
-                            instance_changed = true;
+                            model_changed = true;
                             let (satisfied, conflict_clause_idx) = self.check_if_satisfied();
                             match satisfied {
                                 SAT::Satisfiable => {
@@ -149,11 +149,11 @@ impl Solver {
                     }
                 }
                 'clauses_loop: loop {
-                    match clause_tools::get_next_unit_clause_literal(self.formula.get_clauses(), &self.instance) {
+                    match clause_tools::get_next_unit_clause_literal(self.formula.get_clauses(), &self.model) {
                         Some((literal, clause_idx)) => {
-                            self.instance.add(literal);
+                            self.model.add(literal);
                             self.decisions[self.decision_level].add_propagated_literal(literal);
-                            instance_changed = true;
+                            model_changed = true;
                             let (satisfied, conflict_clause) = self.check_if_satisfied();
                             match satisfied {
                                 SAT::Satisfiable => {
@@ -176,13 +176,13 @@ impl Solver {
                         }
                     }
                 }
-                if !instance_changed {
+                if !model_changed {
                     break;
                 }
             }
 
             let decided_literal = self.decision();
-            self.instance.add(decided_literal);
+            self.model.add(decided_literal);
             self.decision_level += 1;
             self.decisions.push(Decision::new(decided_literal));
 
@@ -204,13 +204,13 @@ impl Solver {
         
         let (satisfied, conflict_clause) = clause_tools::clauses_are_satisfied(
             self.formula.get_mut_clauses(),
-            &self.instance,
+            &self.model,
             self.decision_level,
             None
         );
         let (satisfied2, conflict_clause2) = clause_tools::clauses_are_satisfied(
             &mut self.learned_clauses,
-            &self.instance,
+            &self.model,
             self.decision_level,
             Some(self.formula.get_num_clauses())
         );
@@ -223,12 +223,12 @@ impl Solver {
         return (satisfied + satisfied2, 0)
     }
 
-    pub fn print_instance(&self) {
-        /*for literal in &self.instance {
+    pub fn print_model(&self) {
+        /*for literal in &self.model {
             print!("{} ", literal);
         }
         println!("");*/
-        self.instance.print();
+        self.model.print();
     }
 
     fn conflict_solver(&mut self, conflict_literal: isize, clause_idx: usize, conflict_clause_idx: usize) -> bool {
@@ -314,7 +314,7 @@ impl Solver {
 
     fn remove_latest_propagated_literals(&mut self) {
         self.decisions[self.decision_level].get_propagated_literals().iter().for_each(|&literal| {
-            self.instance.remove(literal);
+            self.model.remove(literal);
         });
         self.decisions[self.decision_level].clear_propagated_literals();
     }
@@ -322,7 +322,7 @@ impl Solver {
     fn backjump(&mut self) {
 
         if self.decision_level > 0 {
-            self.instance.remove(self.decisions[self.decision_level].get_decided_literal());
+            self.model.remove(self.decisions[self.decision_level].get_decided_literal());
             self.decision_level -= 1;
         }
         self.decisions.pop();
@@ -369,8 +369,8 @@ impl Solver {
         vsids.sort_by(|a, b| (b.1.0+b.1.1).partial_cmp(&(a.1.0+a.1.1)).unwrap());
         
         for (idx, _) in vsids.iter() {
-            //if !self.instance.contains(&((idx + 1) as isize)) && !self.instance.contains(&((idx + 1) as isize * -1)) {
-            if !self.instance.has_abs(idx + 1) {
+            //if !self.model.contains(&((idx + 1) as isize)) && !self.model.contains(&((idx + 1) as isize * -1)) {
+            if !self.model.has_abs(idx + 1) {
                 let mut sign:isize = 1;
                 if self.vsids[*idx].0 < self.vsids[*idx].1 {
                     sign = -1;

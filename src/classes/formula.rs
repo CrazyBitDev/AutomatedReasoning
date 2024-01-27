@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::{classes::clause::Clause, consts::sat::SAT};
 use crate::files;
 
-use super::instance::Instance;
+use super::model::Model;
 
 pub struct Formula {
     pub clauses: Vec<Clause>,
@@ -139,19 +139,19 @@ impl Formula {
 
 
 
-    pub fn get_next_unit_clause_literal(&mut self, instance: &Instance) -> Option<(isize, usize)> {
+    pub fn get_next_unit_clause_literal(&mut self, model: &Model) -> Option<(isize, usize)> {
         for (clause_idx, clause) in self.clauses.iter_mut().enumerate() {
-            if clause.is_unit_clause() && !instance.has(clause.get_watched_literals().0) {
+            if clause.is_unit_clause() && !model.has(clause.get_watched_literals().0) {
                 return Some((clause.get_watched_literals().0, clause_idx));
             }
         }
         None
     }
 
-    pub fn is_satisfied(&mut self, instance: &Instance, decision_level: usize) -> (SAT, usize) {
+    pub fn is_satisfied(&mut self, model: &Model, decision_level: usize) -> (SAT, usize) {
         let mut satisfied = SAT::Satisfiable;
         for (idx, clause) in &mut self.clauses.iter_mut().enumerate() {
-            match clause.is_satisfied_by_instance(instance, decision_level) {
+            match clause.is_satisfied_by_model(model, decision_level) {
                 SAT::Satisfiable => continue,
                 SAT::Unknown => satisfied = SAT::Unknown,
                 SAT::Unsatisfiable => return (SAT::Unsatisfiable, idx), //conflict
