@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+byte-unit = "5.1.4"
 chrono = "0.4.31"
 crossterm = "0.27.0"
 memory-stats = "1.1.0"

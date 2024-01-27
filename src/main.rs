@@ -174,6 +174,7 @@ fn main() {
                                 },
                             }
                             println!("Time elapsed in is: {:?}", start.elapsed());
+                            solver.print_stats();
                             input::pause(Option::None);
                         },
                         Err(e) => {

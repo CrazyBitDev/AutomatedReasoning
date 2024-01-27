@@ -1,8 +1,7 @@
 use chrono::{DateTime, Utc};
-use std::slice::Iter;
 use std::vec;
 
-use crate::classes::{clause::Clause, formula::Formula, decision::Decision, file::File, instance::Instance};
+use crate::classes::{clause::Clause, formula::Formula, decision::Decision, file::File, instance::Instance, stats::Stats};
 use crate::tools::clause_tools;
 use crate::consts::sat::SAT;
 
@@ -11,13 +10,16 @@ pub struct Solver {
     pub formula: Formula,
 
     learned_clauses: Vec<Clause>,
+    current_learned_clause_id: usize,
+    max_learned_clauses: usize,
 
     instance: Instance,
 
     decision_level: usize,
     decisions: Vec<Decision>,
-
     vsids: Vec<(f32, f32)>,
+
+    stats: Stats,
 
     file: File
 }
@@ -28,13 +30,16 @@ impl Solver {
             formula: Formula::new(),
 
             learned_clauses: Vec::new(),
+            current_learned_clause_id: 0,
+            max_learned_clauses: 0,
 
             instance: Instance::new(None),
 
             decision_level: 0,
             decisions: Vec::new(),
-
             vsids: Vec::new(),
+
+            stats: Stats::new(),
 
             file: File::new(None)
         }
@@ -42,6 +47,7 @@ impl Solver {
     
     pub fn reset(&mut self) {
         self.formula = Formula::new();
+        self.current_learned_clause_id = 0;
         self.reset_solve();
     }
     
@@ -51,6 +57,8 @@ impl Solver {
         self.decision_level = 0;
         self.decisions = Vec::new();
         self.vsids = Vec::new();
+        self.stats = Stats::new();
+        self.max_learned_clauses = 0;
 
         self.formula.get_mut_clauses().iter_mut().for_each(|clause| {
             clause.reset_satisfied(self.decision_level);
@@ -99,10 +107,13 @@ impl Solver {
         self.decision_level = 0;
         self.decisions = vec![Decision::new(0)];
         self.instance.resize(self.formula.get_num_variables());
-
         self.vsids = vec![(0.0, 0.0); self.formula.get_num_variables()];
+        self.current_learned_clause_id = self.formula.get_num_clauses();
+        self.max_learned_clauses = self.formula.get_num_clauses() / 2;
 
         self.file_init();
+
+        
 
         'solve_loop: loop {
 
@@ -116,7 +127,7 @@ impl Solver {
                             self.decisions[self.decision_level].add_propagated_literal(literal);
                             instance_changed = true;
                             let (satisfied, conflict_clause_idx) = self.check_if_satisfied();
-                            match (satisfied) {
+                            match satisfied {
                                 SAT::Satisfiable => {
                                     self.file_delete();
                                     return Ok(SAT::Satisfiable)
@@ -144,7 +155,7 @@ impl Solver {
                             self.decisions[self.decision_level].add_propagated_literal(literal);
                             instance_changed = true;
                             let (satisfied, conflict_clause) = self.check_if_satisfied();
-                            match (satisfied) {
+                            match satisfied {
                                 SAT::Satisfiable => {
                                     self.file_delete();
                                     return Ok(SAT::Satisfiable)
@@ -174,6 +185,8 @@ impl Solver {
             self.instance.add(decided_literal);
             self.decision_level += 1;
             self.decisions.push(Decision::new(decided_literal));
+
+            self.stats.update();
 
             let (satisfied, _) = self.check_if_satisfied();
             match satisfied {
@@ -220,14 +233,20 @@ impl Solver {
 
     fn conflict_solver(&mut self, conflict_literal: isize, clause_idx: usize, conflict_clause_idx: usize) -> bool {
 
-        let clause_idx = clause_idx;
-        let conflict_clause_idx = conflict_clause_idx;
-
         let (_, new_clause) = self.explain_and_learn(conflict_literal, clause_idx, conflict_clause_idx);
 
         if new_clause.literals_len() == 0 {
             return false;
         }
+
+        self.stats.icrease_learned();
+
+        /*if self.learned_clauses.len() > self.max_learned_clauses {
+            self.forget();
+        }*/
+        
+
+        self.stats.update();
 
         self.backjump();
 
@@ -244,13 +263,15 @@ impl Solver {
         let clause = self.get_clause(clause_idx);
         let conflict_clause = self.get_clause(conflict_clause_idx);
         
-        let clause_formatted = format!("{id} [label=<<FONT POINT-SIZE='8.0'>({id})  </FONT>{clause}>]", id=clause_idx+1, clause=clause);
-        let conflict_clause_formatted = format!("{id} [label=<<FONT POINT-SIZE='8.0'>({id})  </FONT>{clause}>]", id=conflict_clause_idx+1, clause=conflict_clause);
+        let clause_formatted = format!("{id} [label=<<FONT POINT-SIZE='8.0'>({id})  </FONT>{clause}>]", id=clause.get_id(), clause=clause);
+        let conflict_clause_formatted = format!("{id} [label=<<FONT POINT-SIZE='8.0'>({id})  </FONT>{clause}>]", id=conflict_clause.get_id(), clause=conflict_clause);
 
         //let common_literals = clause.get_common_literals(conflict_clause);
         let mut learned_clause = clause.clone() + conflict_clause.clone();
         learned_clause.remove_literal(conflict_literal);
         learned_clause.remove_literal(-conflict_literal);
+        let current_learned_clause_id = self.current_learned_clause_id + 1;
+        learned_clause.set_id(current_learned_clause_id);
 
         let learned_clause_formatted: String;
         let first_arrow_formatted: String;
@@ -261,14 +282,14 @@ impl Solver {
             learned_clause_idx = 0;
 
             learned_clause_formatted = "□".to_string();
-            first_arrow_formatted = format!("{} -> □", clause_idx+1);
-            second_arrow_formatted = format!("{} -> □", conflict_clause_idx+1);
+            first_arrow_formatted = format!("{} -> □", clause.get_id());
+            second_arrow_formatted = format!("{} -> □", conflict_clause.get_id());
         } else {
-            learned_clause_idx = self.add_learned_clause(learned_clause.clone());
+            learned_clause_formatted = format!("{id} [label=<<FONT POINT-SIZE='8.0'>({id})  </FONT>{clause}>]", id=learned_clause.get_id(), clause=learned_clause);
+            first_arrow_formatted = format!("{} -> {}", clause.get_id(), learned_clause.get_id());
+            second_arrow_formatted = format!("{} -> {}", conflict_clause.get_id(), learned_clause.get_id());
 
-            learned_clause_formatted = format!("{id} [label=<<FONT POINT-SIZE='8.0'>({id})  </FONT>{clause}>]", id=learned_clause_idx+1, clause=learned_clause);
-            first_arrow_formatted = format!("{} -> {}", clause_idx+1, learned_clause_idx + 1);
-            second_arrow_formatted = format!("{} -> {}", conflict_clause_idx+1, learned_clause_idx + 1);
+            learned_clause_idx = self.add_learned_clause(learned_clause.clone());
 
             //self.get_mut_clause(clause_idx).set_is_satisfied_somewhere(true);
             //self.get_mut_clause(conflict_clause_idx).set_is_satisfied_somewhere(true);
@@ -285,6 +306,7 @@ impl Solver {
         self.file.writeln(&first_arrow_formatted);
         self.file.writeln(&second_arrow_formatted);
 
+        self.current_learned_clause_id = current_learned_clause_id;
 
         return (learned_clause_idx, learned_clause);
 
@@ -388,6 +410,27 @@ impl Solver {
         return literal * sign;
     }
 
+    fn forget(&mut self) {
+
+        //clone learned clauses and associate them with their id
+        let mut learned_clauses: Vec<(usize, Clause)> = self.learned_clauses.clone()
+                .iter_mut().enumerate().map(|(idx, clause)| (idx, clause.clone())).collect();
+
+        let clauses_to_forget_target = self.learned_clauses.len() / 3;
+        let mut clauses_forgotten = 0;
+
+        for clause in learned_clauses.iter_mut() {
+            if clause.1.literals_len() > 1 && clause.0 < clauses_to_forget_target {
+                self.learned_clauses.retain(|x| x.get_id() != clause.1.get_id());
+                clauses_forgotten += 1;
+            }
+        }
+
+        self.stats.icrease_forgotten(clauses_forgotten);
+        self.max_learned_clauses += self.max_learned_clauses / 3;
+
+    }
+
     fn file_init(&mut self) {
 
         let current_time = Utc::now().format("%Y%m%d%H%M%S");
@@ -403,6 +446,13 @@ impl Solver {
 
     fn file_delete(&mut self) {
         self.file.delete();
+    }
+
+    pub fn print_stats(&self) {
+        println!("Clauses learned: {}", self.stats.get_clauses_learned());
+        println!("Clauses forgotten: {}", self.stats.get_clauses_forgotten());
+        println!("Max virtual memory: {}", self.stats.get_virtual_memory());
+        println!("Max physical memory: {}", self.stats.get_physical_memory());
     }
 
 }

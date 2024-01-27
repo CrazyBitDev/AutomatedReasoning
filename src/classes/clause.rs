@@ -9,25 +9,33 @@ use super::instance::Instance;
 
 #[derive(Clone)]
 pub struct Clause {
+    clause_id: usize,
     literals: Vec<isize>,
-    pub satisfied: Option<usize>,
-    pub is_always_satisfied: bool,
-    pub satisfied_somewhere: bool,
+    satisfied: Option<usize>,
+    is_always_satisfied: bool,
 
-    pub two_watched_literals: (usize, usize),
+    two_watched_literals: (usize, usize),
 }
 
 impl Clause {
     pub fn new() -> Clause {
         Clause {
+            clause_id: 0,
             literals: Vec::new(),
             satisfied: None,
             is_always_satisfied: false,
-            satisfied_somewhere: false,
 
             two_watched_literals: (0, 0),
         }
     }
+    
+    pub fn set_id(&mut self, id: usize) {
+        self.clause_id = id;
+    }
+    pub fn get_id(&self) -> usize {
+        self.clause_id
+    }
+
 
     pub fn load_string(&mut self, literal_string: String) -> Result<(), ()> {
 
@@ -81,15 +89,7 @@ impl Clause {
     }
     
     pub fn is_satisfied(&self) -> bool {
-        return self.satisfied.is_some() || self.is_always_satisfied || self.satisfied_somewhere;
-    }
-
-    pub fn is_satisfied_somewhere(&self) -> bool {
-        return self.satisfied_somewhere;
-    }
-
-    pub fn set_is_satisfied_somewhere(&mut self, value: bool) {
-        self.satisfied_somewhere = value;
+        return self.satisfied.is_some() || self.is_always_satisfied;
     }
 
     pub fn reset_satisfied(&mut self, current_decision_level: usize) -> bool{
@@ -158,24 +158,8 @@ impl Clause {
         }
     }
 
-    fn check_literal_is_satisfied(&mut self, literal_idx: usize, instance: &Instance) -> SAT {
-
-        //loop instance
-        /*for literal in instance {
-            if self.literals[literal_idx] == *literal {
-                return SAT::Satisfiable;
-            } else if self.literals[literal_idx] == -*literal {
-                return SAT::Unsatisfiable; // conflict
-            }
-        }*/
-        
-
-
-        return SAT::Unknown;
-    }
-
     pub fn is_satisfied_by_instance(&mut self, instance: &Instance, decision_level: usize) -> SAT {
-        if self.is_always_satisfied || self.satisfied.is_some() || self.satisfied_somewhere {
+        if self.is_always_satisfied || self.satisfied.is_some() {
             return SAT::Satisfiable;
         }
 

@@ -1,9 +1,7 @@
 use std::{self, io::{stdin, stdout, Read, Write}, time::Duration};
 
 use crossterm::{
-    cursor::position,
     event::{poll, read, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
-    execute,
     terminal::{disable_raw_mode, enable_raw_mode},
 };
 

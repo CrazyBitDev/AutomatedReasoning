@@ -1,4 +1,3 @@
-use std::slice::Iter;
 use std::collections::{HashMap, HashSet};
 
 use crate::{classes::clause::Clause, consts::sat::SAT};
@@ -14,6 +13,8 @@ pub struct Formula {
     pub literal_map: HashMap<usize, String>,
 
     pub formula_string: Vec<String>,
+
+    current_clause_id: usize,
 }
 
 impl Formula {
@@ -24,7 +25,9 @@ impl Formula {
             num_clauses: 0,
             literal_map: HashMap::new(),
 
-            formula_string: Vec::new()
+            formula_string: Vec::new(),
+
+            current_clause_id: 0,
         }
     }
 
@@ -59,7 +62,11 @@ impl Formula {
             //if the line is a clause, add it to the formula
             let mut clause = Clause::new();
             match clause.load_string(line.to_string()) {
-                Ok(()) => self.clauses.push(clause),
+                Ok(()) => {
+                    self.current_clause_id += 1;
+                    clause.set_id(self.current_clause_id);
+                    self.clauses.push(clause)
+                },
                 Err(()) => continue,
             };
         }
@@ -69,10 +76,12 @@ impl Formula {
         let mut clause = Clause::new();
         match clause.load_string(clause_string) {
             Ok(()) => {
+                self.current_clause_id += 1;
+                clause.set_id(self.current_clause_id);
                 self.clauses.push(clause);
                 return Ok(());
             },
-            Err(e) => return Err(()),
+            Err(_e) => return Err(()),
         };
     }
 

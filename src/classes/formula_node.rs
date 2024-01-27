@@ -15,7 +15,7 @@ pub struct FormulaNode {
 
 impl FormulaNode {
     pub fn new(subformula: Vec<String>, parenthesis: HashMap<usize, usize>, negated: bool) -> FormulaNode {
-        let mut formulaNode = FormulaNode {
+        let mut formula_node = FormulaNode {
             children: Vec::new(),
             literal: 0,
             operator: String::new(),
@@ -25,9 +25,9 @@ impl FormulaNode {
         if subformula.len() == 1 {
             let element = &subformula[0];
             if element == "→" || element == "←" || element == "∧" || element == "∨" {
-                formulaNode.operator = element.to_string();
+                formula_node.operator = element.to_string();
             } else {
-                formulaNode.literal = match element.parse::<i32>() {
+                formula_node.literal = match element.parse::<i32>() {
                     Ok(n) => n,
                     Err(_) => 0,
                 };
@@ -45,7 +45,7 @@ impl FormulaNode {
                     negation = true;
                 } else if element == "(" {
                     let mut parenthesis_clone = parenthesis.clone();
-                    parenthesis_clone.retain(|k, v| 
+                    parenthesis_clone.retain(|k, _v| 
                         k != &idx && k >= &((&idx + 1))    
                     );
                     parenthesis_clone = parenthesis_clone
@@ -54,7 +54,7 @@ impl FormulaNode {
                             (k - idx - 1, v - idx - 1)
                         )
                         .collect::<HashMap<usize, usize>>();
-                    formulaNode.children.push(FormulaNode::new(
+                    formula_node.children.push(FormulaNode::new(
                         subformula[idx + 1..*parenthesis.get(&idx).unwrap()].to_vec(),
                         parenthesis_clone,
                         negation)
@@ -62,9 +62,9 @@ impl FormulaNode {
                     negation = false;
                     idx = *parenthesis.get(&idx).unwrap();
                 } else if element == "→" || element == "←" || element == "∧" || element == "∨" {
-                    formulaNode.children.push(FormulaNode::new(vec![element.to_string()], parenthesis.clone(), negation));
+                    formula_node.children.push(FormulaNode::new(vec![element.to_string()], parenthesis.clone(), negation));
                 } else {
-                    formulaNode.children.push(FormulaNode::new(vec![element.to_string()], parenthesis.clone(), negation));
+                    formula_node.children.push(FormulaNode::new(vec![element.to_string()], parenthesis.clone(), negation));
                     negation = false;
                 }
 
@@ -72,7 +72,7 @@ impl FormulaNode {
             }
         }
 
-        return formulaNode;
+        return formula_node;
     }
 
     pub fn new_by_children(childrens: Vec<FormulaNode>, negated: bool) -> FormulaNode {
@@ -215,7 +215,7 @@ impl fmt::Display for FormulaNode {
                 result.push_str("-");
             }
             result.push_str("(");
-            for (i, child) in self.children.iter().enumerate() {
+            for (_i, child) in self.children.iter().enumerate() {
                 result.push_str(&format!("{}", child));
             }
             result.push_str(")");
