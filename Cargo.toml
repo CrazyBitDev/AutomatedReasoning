@@ -12,5 +12,8 @@ rand = "0.8.5"
 sorted-list = "0.2.0"
 terminal-menu = "3.0.0"
 
+[patch.crates-io]
+terminal-menu = {path = "./patch/terminal-menu-rs"}
+
 [profile.release]
 debug = true

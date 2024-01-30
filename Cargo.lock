@@ -723,8 +723,6 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 [[package]]
 name = "terminal-menu"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66e7bfe79ce3db25763bc7cb3af8be872a5e74ed2844c5cfcbbacd95c4a4bc8a"
 dependencies = [
  "crossterm 0.25.0",
  "lazy_static",

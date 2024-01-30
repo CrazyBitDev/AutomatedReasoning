@@ -27,10 +27,10 @@ impl Stats {
         };
     }
 
-    pub fn icrease_learned(&mut self) {
+    pub fn increase_learned(&mut self) {
         self.clauses_learned += 1;
     }
-    pub fn icrease_forgotten(&mut self, amount: usize) {
+    pub fn increase_forgotten(&mut self, amount: usize) {
         self.clauses_forgotten += amount;
     }
 

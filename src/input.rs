@@ -7,6 +7,8 @@ use crossterm::{
 
 use terminal_menu::{menu, label, button, has_exited, run, mut_menu, TerminalMenuItem};
 
+use crate::consts::editor_types::EditorTypes;
+
 pub fn input(message: &str) -> Result<String, std::io::Error> {
     print!("\n\n{}", message);
     stdout().flush()?;
@@ -266,6 +268,56 @@ pub fn choice_menu(labels: Vec<&str>, choices: Vec<&str>) -> Result<String, ()> 
     }
 
     return Ok(menu_result.selected_item_name().to_string());
+}
+
+pub fn editor_menu<'a>(labels: Vec<&'a str>, choices: Vec<(&'a str, EditorTypes)>) -> Result<Vec<(&'a str, usize)>, ()> {
+    
+    let mut menu_vec: Vec<TerminalMenuItem> = vec![];
+
+    for label in labels {
+        menu_vec.push(terminal_menu::label(label));
+    }
+    menu_vec.push(terminal_menu::label(""));
+
+    let mut choices_labels: Vec<&str> = vec![];
+
+    for choice in choices {
+        choices_labels.push(choice.0);
+        match choice.1 {
+            EditorTypes::Bool(is_true) => {
+                menu_vec.push(
+                    terminal_menu::list(choice.0, vec!["No", "Yes"]).set_selected_item(
+                        match is_true {
+                            true => 1,
+                            false => 0,
+                        }
+                    )
+                );
+            },
+            EditorTypes::StringArray(string_array, selected_idx) => {
+                menu_vec.push(
+                    terminal_menu::list(choice.0, string_array).set_selected_item(selected_idx)
+                );
+            },
+        }
+    }
+    menu_vec.push(terminal_menu::button("Back"));
+
+    let menu = menu(menu_vec);
+    run(&menu);
+
+    let menu_result = mut_menu(&menu);
+
+    if menu_result.canceled() {
+        return Err(())
+    }
+
+    let mut results: Vec<(&str, usize)> = vec![];
+    for choice in choices_labels {
+        results.push((choice, menu_result.selection_value_index(choice)));
+    }
+
+    Ok(results)
 }
 
 pub fn bool_confirm(message: &str, default: bool) -> Result<bool, std::io::Error> {

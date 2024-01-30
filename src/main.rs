@@ -9,7 +9,7 @@ pub mod tools;
 use std::vec;
 
 pub use crate::classes::solver::Solver;
-pub use crate::consts::sat::SAT;
+pub use crate::consts::{sat::SAT, editor_types::EditorTypes};
 
 use std::time::{Duration, Instant};
 
@@ -31,6 +31,7 @@ fn main() {
 
         if solver.is_formula_loaded() {
             choices.push("Solve");
+            choices.push("Solver options");
             choices.push("Print");
             choices.push("Clear formula");
         } else {
@@ -180,6 +181,31 @@ fn main() {
                         Err(e) => {
                             eprintln!("Error: {:?}", e);
                         }
+                    }
+                } else if choice == "Solver options" {
+                    match input::editor_menu(
+                        vec![
+                            "Change the solver options:"
+                        ],
+                        vec![
+                            ("Print .dot file", EditorTypes::Bool(solver.is_dot_proof_enabled())),
+                            ("Print .tex file", EditorTypes::Bool(solver.is_tex_proof_enabled()))
+                        ]
+                    ) {
+                        Ok(results) => {
+                            for result in results {
+                                match result {
+                                    ("Print .dot file", enabled) => {
+                                        solver.set_dot_proof_enabled(enabled == 1);
+                                    },
+                                    ("Print .tex file", enabled) => {
+                                        solver.set_tex_proof_enabled(enabled == 1);
+                                    } 
+                                    _ => (),
+                                };
+                            }
+                        },
+                        Err(_e) => (),
                     }
                 } else if choice == "Print" {
                     //solver.formula.print_stats();

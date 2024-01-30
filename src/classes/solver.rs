@@ -21,7 +21,11 @@ pub struct Solver {
 
     stats: Stats,
 
-    file: File
+    print_dot_proof: bool,
+    file_dot: File,
+
+    print_tex_proof: bool,
+    file_tex: File
 }
 
 impl Solver {
@@ -41,7 +45,11 @@ impl Solver {
 
             stats: Stats::new(),
 
-            file: File::new(None)
+            print_dot_proof: true,
+            file_dot: File::new(None),
+
+            print_tex_proof: false,
+            file_tex: File::new(None)
         }
     }
     
@@ -109,6 +117,18 @@ impl Solver {
         return self.formula.get_num_clauses() + self.learned_clauses.len();
     }
 
+    pub fn is_dot_proof_enabled(&self) -> bool {
+        return self.print_dot_proof;
+    }
+    pub fn is_tex_proof_enabled(&self) -> bool {
+        return self.print_tex_proof;
+    }
+    pub fn set_dot_proof_enabled(&mut self, enable: bool) {
+        self.print_dot_proof = enable;
+    }
+    pub fn set_tex_proof_enabled(&mut self, enable: bool) {
+        self.print_tex_proof = enable;
+    }
 
     pub fn solve(&mut self) -> Result<SAT, ()> {
 
@@ -236,10 +256,6 @@ impl Solver {
     }
 
     pub fn print_model(&self) {
-        /*for literal in &self.model {
-            print!("{} ", literal);
-        }
-        println!("");*/
         self.model.print();
     }
 
@@ -251,12 +267,7 @@ impl Solver {
             return false;
         }
 
-        self.stats.icrease_learned();
-
-        /*if self.learned_clauses.len() > self.max_learned_clauses {
-            self.forget();
-        }*/
-        
+        self.stats.increase_learned();
 
         self.stats.update();
 
@@ -302,21 +313,20 @@ impl Solver {
             second_arrow_formatted = format!("{} -> {}", conflict_clause.get_id(), learned_clause.get_id());
 
             learned_clause_idx = self.add_learned_clause(learned_clause.clone());
-
-            //self.get_mut_clause(clause_idx).set_is_satisfied_somewhere(true);
-            //self.get_mut_clause(conflict_clause_idx).set_is_satisfied_somewhere(true);
         }
 
 
-        if clause_idx < self.formula.get_num_clauses() {
-            self.file.writeln(&clause_formatted);
+        if self.print_dot_proof {
+            if clause_idx < self.formula.get_num_clauses() {
+                self.file_dot.writeln(&clause_formatted);
+            }
+            if conflict_clause_idx < self.formula.get_num_clauses()  {
+                self.file_dot.writeln(&conflict_clause_formatted);
+            }
+            self.file_dot.writeln(&learned_clause_formatted);
+            self.file_dot.writeln(&first_arrow_formatted);
+            self.file_dot.writeln(&second_arrow_formatted);
         }
-        if conflict_clause_idx < self.formula.get_num_clauses()  {
-            self.file.writeln(&conflict_clause_formatted);
-        }
-        self.file.writeln(&learned_clause_formatted);
-        self.file.writeln(&first_arrow_formatted);
-        self.file.writeln(&second_arrow_formatted);
 
         self.current_learned_clause_id = current_learned_clause_id;
 
@@ -374,14 +384,12 @@ impl Solver {
     }
 
     fn decision(&self) -> isize {
-        //vsids
         let vsids = self.vsids.clone();
         let mut vsids: Vec<(usize, (f32, f32))> = vsids.iter().enumerate().map(|(idx, &value)| (idx, value)).collect();
         vsids.retain(|e| (e.1.0 + e.1.1) > 0.0 );
         vsids.sort_by(|a, b| (b.1.0+b.1.1).partial_cmp(&(a.1.0+a.1.1)).unwrap());
         
         for (idx, _) in vsids.iter() {
-            //if !self.model.contains(&((idx + 1) as isize)) && !self.model.contains(&((idx + 1) as isize * -1)) {
             if !self.model.has_abs(idx + 1) {
                 let mut sign:isize = 1;
                 if self.vsids[*idx].0 < self.vsids[*idx].1 {
@@ -438,7 +446,7 @@ impl Solver {
             }
         }
 
-        self.stats.icrease_forgotten(clauses_forgotten);
+        self.stats.increase_forgotten(clauses_forgotten);
         self.max_learned_clauses += self.max_learned_clauses / 3;
 
     }
@@ -447,17 +455,29 @@ impl Solver {
 
         let current_time = Utc::now().format("%Y%m%d%H%M%S");
 
-        self.file = File::new(Some(format!("proof_{}.dot", current_time)));
-        self.file.create();
-        self.file.writeln("digraph {");
+        if self.print_dot_proof {
+            self.file_dot = File::new(Some(format!("proof_{}.dot", current_time)));
+            self.file_dot.create();
+            self.file_dot.writeln("digraph {");
+        }
+        if self.print_tex_proof {
+            self.file_tex = File::new(Some(format!("proof_{}.tex", current_time)));
+            self.file_tex.create();
+            self.file_tex.writeln("\\documentclass{article}");
+            self.file_tex.writeln("\\usepackage{seqsplit}\\usepackage{mathtools}");
+            self.file_tex.writeln("\\newcommand{\\overflow}[1]{ \\texttt{\\ttfamily\\seqsplit{$#1$}} }");
+            self.file_tex.writeln("\\begin{document}");
+        }
     }
 
     fn file_close(&mut self) {
-        self.file.writeln("}");
+        self.file_dot.writeln("}");
+        self.file_tex.writeln("\\end{document}");
     }
 
     fn file_delete(&mut self) {
-        self.file.delete();
+        self.file_dot.delete();
+        self.file_tex.delete();
     }
 
     pub fn print_stats(&self) {
