@@ -78,6 +78,18 @@ impl Solver {
         return 0;
     }
 
+    /// Returns a reference to the clause at the given index.
+    /// If the index is out of bounds, returns a reference from the learned clauses.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `idx` - The index of the clause.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// let clause = solver.get_clause(0);
+    /// ```
     fn get_clause(&self, idx: usize) -> &Clause {
         if idx < self.formula.get_num_clauses() {
             return self.formula.get_clause(idx);
