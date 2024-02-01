@@ -137,12 +137,26 @@ impl FormulaNode {
         self.children = children;
     }
 
-    
-    pub fn get_child(&mut self, child_idx: usize) -> Result<&mut FormulaNode, ()> {
+    pub fn get_child(&self, child_idx: usize) -> Result<&FormulaNode, ()> {
+        if self.children.len() > 0 && child_idx < self.children.len() {
+            return Ok(&self.children[child_idx]);
+        }
+        return Err(());
+    }
+    pub fn get_mut_child(&mut self, child_idx: usize) -> Result<&mut FormulaNode, ()> {
         if self.children.len() > 0 && child_idx < self.children.len() {
             return Ok(&mut self.children[child_idx]);
         }
         return Err(());
+    }
+
+    pub fn set_child(&mut self, child: FormulaNode, child_idx: usize) {
+        if self.children.len() > 0 && child_idx < self.children.len() {
+            self.children[child_idx] = child;
+        }
+    }
+    pub fn append_child(&mut self, child: FormulaNode) {
+        self.children.push(child);
     }
 
     pub fn remove_child(&mut self, child_idx: usize) {

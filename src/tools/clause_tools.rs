@@ -20,7 +20,7 @@ pub fn clauses_are_satisfied(clauses: &mut Vec<Clause>, model: &Model, decision_
             SAT::Unknown => satisfied = SAT::Unknown,
             SAT::Unsatisfiable => {
                 return (SAT::Unsatisfiable, idx + increase_idx)
-            }, //conflict
+            },
         }
     }
     (satisfied, 0)

@@ -2,8 +2,8 @@ use chrono::{DateTime, Utc};
 use std::vec;
 
 use crate::classes::{clause::Clause, formula::Formula, decision::Decision, file::File, model::Model, stats::Stats};
-use crate::tools::clause_tools;
-use crate::consts::sat::SAT;
+use crate::tools::clause_tools::{self, clauses_are_satisfied};
+use crate::consts::{sat::SAT, operators};
 
 
 pub struct Solver {
@@ -23,6 +23,9 @@ pub struct Solver {
 
     print_dot_proof: bool,
     file_dot: File,
+
+    print_txt_proof: bool,
+    file_txt: File,
 
     print_tex_proof: bool,
     file_tex: File
@@ -45,8 +48,11 @@ impl Solver {
 
             stats: Stats::new(),
 
-            print_dot_proof: true,
+            print_dot_proof: false,
             file_dot: File::new(None),
+
+            print_txt_proof: false,
+            file_txt: File::new(None),
 
             print_tex_proof: false,
             file_tex: File::new(None)
@@ -120,11 +126,17 @@ impl Solver {
     pub fn is_dot_proof_enabled(&self) -> bool {
         return self.print_dot_proof;
     }
+    pub fn is_txt_proof_enabled(&self) -> bool {
+        return self.print_txt_proof;
+    }
     pub fn is_tex_proof_enabled(&self) -> bool {
         return self.print_tex_proof;
     }
     pub fn set_dot_proof_enabled(&mut self, enable: bool) {
         self.print_dot_proof = enable;
+    }
+    pub fn set_txt_proof_enabled(&mut self, enable: bool) {
+        self.print_txt_proof = enable;
     }
     pub fn set_tex_proof_enabled(&mut self, enable: bool) {
         self.print_tex_proof = enable;
@@ -141,11 +153,10 @@ impl Solver {
         self.model.resize(self.formula.get_num_variables());
         self.vsids = vec![(0.0, 0.0); self.formula.get_num_variables()];
         self.current_learned_clause_id = self.formula.get_num_clauses();
-        self.max_learned_clauses = self.formula.get_num_clauses() / 2;
+        self.max_learned_clauses = self.formula.get_num_clauses();
 
         self.file_init();
 
-        
 
         'solve_loop: loop {
 
@@ -156,7 +167,8 @@ impl Solver {
                         Some((literal, clause_idx)) => {
                             let clause_idx = clause_idx + self.formula.get_num_clauses();
                             self.model.add(literal);
-                            self.decisions[self.decision_level].add_propagated_literal(literal);
+                            self.decisions[self.decision_level].add_propagated_literal(literal, clause_idx);
+                            self.tex_print_model("Propagation", None);
                             model_changed = true;
                             let (satisfied, conflict_clause_idx) = self.check_if_satisfied();
                             match satisfied {
@@ -184,16 +196,17 @@ impl Solver {
                     match clause_tools::get_next_unit_clause_literal(self.formula.get_clauses(), &self.model) {
                         Some((literal, clause_idx)) => {
                             self.model.add(literal);
-                            self.decisions[self.decision_level].add_propagated_literal(literal);
+                            self.decisions[self.decision_level].add_propagated_literal(literal, clause_idx);
+                            self.tex_print_model("Propagation", None);
                             model_changed = true;
-                            let (satisfied, conflict_clause) = self.check_if_satisfied();
+                            let (satisfied, conflict_clause_idx) = self.check_if_satisfied();
                             match satisfied {
                                 SAT::Satisfiable => {
                                     self.file_delete();
                                     return Ok(SAT::Satisfiable)
                                 },
                                 SAT::Unsatisfiable => {
-                                    let solved = self.conflict_solver(literal, clause_idx, conflict_clause);
+                                    let solved = self.conflict_solver(literal, clause_idx, conflict_clause_idx);
                                     if !solved {
                                         self.file_close();
                                         return Ok(SAT::Unsatisfiable);
@@ -217,6 +230,8 @@ impl Solver {
             self.model.add(decided_literal);
             self.decision_level += 1;
             self.decisions.push(Decision::new(decided_literal));
+
+            self.tex_print_model("Decision", None);
 
             self.stats.update();
 
@@ -261,25 +276,37 @@ impl Solver {
 
     fn conflict_solver(&mut self, conflict_literal: isize, clause_idx: usize, conflict_clause_idx: usize) -> bool {
 
-        let (_, new_clause) = self.explain_and_learn(conflict_literal, clause_idx, conflict_clause_idx);
+        self.update_vsids(conflict_clause_idx);
+        self.tex_print_model("Conflict", Some(format!("{}: {}", self.get_clause(conflict_clause_idx).get_id(), self.get_clause(conflict_clause_idx))));
+
+        let mut new_clause = self.explain(conflict_literal, clause_idx, conflict_clause_idx);
 
         if new_clause.literals_len() == 0 {
             return false;
         }
 
+        self.add_learned_clause(new_clause.clone());
+    
+        self.tex_print_model("Learn", Some(format!("{}: {}", new_clause.get_id(), new_clause)));
+
         self.stats.increase_learned();
 
         self.stats.update();
 
+        if self.learned_clauses.len() > self.max_learned_clauses {
+            self.forget();
+        }
+
         self.backjump();
 
-        self.update_vsids(conflict_clause_idx);
+        self.tex_print_model("Backjump", None);
+
         
         return true;
 
     }
 
-    fn explain_and_learn(&mut self, conflict_literal: isize, clause_idx: usize, conflict_clause_idx: usize) -> (usize, Clause) {
+    fn explain(&mut self, conflict_literal: isize, clause_idx: usize, conflict_clause_idx: usize) -> Clause {
 
         self.remove_latest_propagated_literals();
 
@@ -293,26 +320,39 @@ impl Solver {
         let mut learned_clause = clause.clone() + conflict_clause.clone();
         learned_clause.remove_literal(conflict_literal);
         learned_clause.remove_literal(-conflict_literal);
+        learned_clause.check_literals();
         let current_learned_clause_id = self.current_learned_clause_id + 1;
         learned_clause.set_id(current_learned_clause_id);
 
         let learned_clause_formatted: String;
         let first_arrow_formatted: String;
         let second_arrow_formatted: String;
-        let learned_clause_idx: usize;
+        
+        let mut txt_formatted = format!("({}) {} - ({}) {} => ", clause.get_id(), clause, conflict_clause.get_id(), conflict_clause);
 
         if learned_clause.literals_len() == 0 {
-            learned_clause_idx = 0;
 
             learned_clause_formatted = "□".to_string();
             first_arrow_formatted = format!("{} -> □", clause.get_id());
             second_arrow_formatted = format!("{} -> □", conflict_clause.get_id());
+            
+            txt_formatted.push_str("□");
+
+            if self.print_tex_proof {
+                self.tex_print_arrow("Fail");
+                self.file_tex.writeln("$\\square$");
+            }
+
+
         } else {
             learned_clause_formatted = format!("{id} [label=<<FONT POINT-SIZE='8.0'>({id})  </FONT>{clause}>]", id=learned_clause.get_id(), clause=learned_clause);
             first_arrow_formatted = format!("{} -> {}", clause.get_id(), learned_clause.get_id());
             second_arrow_formatted = format!("{} -> {}", conflict_clause.get_id(), learned_clause.get_id());
+            
+            txt_formatted.push_str(format!("({}) {}", learned_clause.get_id(), learned_clause).as_str());
 
-            learned_clause_idx = self.add_learned_clause(learned_clause.clone());
+            self.tex_print_model("Explain", Some(format!("{}: {}", learned_clause.get_id(), learned_clause)));
+
         }
 
 
@@ -327,34 +367,42 @@ impl Solver {
             self.file_dot.writeln(&first_arrow_formatted);
             self.file_dot.writeln(&second_arrow_formatted);
         }
+        if self.print_txt_proof {
+            self.file_txt.writeln(&txt_formatted);
+        }
+
+        self.get_mut_clause(clause_idx).learned_clause_is_used_somewhere = true;
+        self.get_mut_clause(conflict_clause_idx).learned_clause_is_used_somewhere = true;
 
         self.current_learned_clause_id = current_learned_clause_id;
 
-        return (learned_clause_idx, learned_clause);
+        return learned_clause;
 
     }
 
     fn remove_latest_propagated_literals(&mut self) {
         self.decisions[self.decision_level].get_propagated_literals().iter().for_each(|&literal| {
-            self.model.remove(literal);
+            self.model.remove(literal.0);
         });
         self.decisions[self.decision_level].clear_propagated_literals();
-    }
-
-    fn backjump(&mut self) {
-
-        if self.decision_level > 0 {
-            self.model.remove(self.decisions[self.decision_level].get_decided_literal());
-            self.decision_level -= 1;
-        }
-        self.decisions.pop();
-
         self.formula.get_mut_clauses().iter_mut().for_each(|clause| {
             clause.reset_satisfied(self.decision_level);
         });
         self.learned_clauses.iter_mut().for_each(|clause| {
             clause.reset_satisfied(self.decision_level);
         });
+    }
+
+    fn backjump(&mut self) {
+
+        self.remove_latest_propagated_literals();
+        if self.decision_level > 0 {
+            self.model.remove(self.decisions[self.decision_level].get_decided_literal());
+            self.decision_level -= 1;
+        }
+        self.decisions.pop();
+
+
 
         if self.decisions.len() == 0 {
             self.decisions.push(Decision::new(0));
@@ -436,48 +484,140 @@ impl Solver {
         let mut learned_clauses: Vec<(usize, Clause)> = self.learned_clauses.clone()
                 .iter_mut().enumerate().map(|(idx, clause)| (idx, clause.clone())).collect();
 
-        let clauses_to_forget_target = self.learned_clauses.len() / 3;
+        let mut avg_clause_len = 0;
+        for clause in learned_clauses.iter() {
+            avg_clause_len += clause.1.literals_len();
+        }
+        avg_clause_len /= learned_clauses.len();
+
+        let clauses_to_forget_target = self.learned_clauses.len() / 2;
         let mut clauses_forgotten = 0;
 
         for clause in learned_clauses.iter_mut() {
-            if clause.1.literals_len() > 1 && clause.0 < clauses_to_forget_target {
+           // if clause.1.literals_len() > 1 && clause.0 < clauses_to_forget_target && clause.1.learned_clause_is_used_somewhere {
+            if clause.0 < clauses_to_forget_target && clause.1.literals_len() > avg_clause_len {
                 self.learned_clauses.retain(|x| x.get_id() != clause.1.get_id());
                 clauses_forgotten += 1;
             }
         }
 
         self.stats.increase_forgotten(clauses_forgotten);
-        self.max_learned_clauses += self.max_learned_clauses / 3;
+        self.max_learned_clauses = (self.max_learned_clauses as f32 * 1.5).round() as usize;
 
+    }
+
+    fn tex_print_arrow(&mut self, arrow_str: &str) {
+        if self.print_tex_proof {
+            self.file_tex.write(format!("\n\n$\\xRightarrow[\\text{{{}}}]{{}}$ ", arrow_str).as_str());
+        }
+    }
+
+    fn tex_print_model(&mut self, arrow_str: &str, append: Option<String>) {
+
+        if self.print_tex_proof {
+        
+            let mut model_string: String = String::new();
+            let mut i = 0;
+            for decision in self.decisions.iter() {
+                if decision.get_decided_literal() != 0 {
+                    model_string.push_str(&format!("{}{{^d}} ", decision.get_decided_literal()));
+                    i += 1;
+                }
+                for propagated_literal in decision.get_propagated_literals() {
+                    model_string.push_str(&format!("{}{{_{{{}}}}}", propagated_literal.0, propagated_literal.1+1));
+                    i += 1;
+                }
+                if i > 40 {
+                    model_string.push_str("\n");
+                    i = 0;
+                }
+            }
+            if model_string.len() == 0 {
+                model_string.push_str("\\emptyset");
+            }
+            model_string.push_str("\n||F");
+            let learned_clauses_len = self.learned_clauses.len();
+            if learned_clauses_len > 0 {
+                model_string.push_str("\\cup\\{");
+                let mut i = 0;
+                for (idx, clause) in self.learned_clauses.iter().enumerate() {
+                    model_string.push_str(&format!("{}", clause.get_id()));
+                    if idx < learned_clauses_len - 1 {
+                        model_string.push_str(", ");
+                    }
+                    i += 1;
+                    if i > 40 {
+                        model_string.push_str("\n");
+                        i = 0;
+                    }
+                }
+                model_string.push_str("\\}");
+            }
+
+            let append_str = match append {
+                Some(append) => format!("||{}", append),
+                None => "".to_string()
+            };
+
+            self.tex_print_arrow(arrow_str);
+            self.file_tex.write(
+                &format!("\\overflow{{{}\n{}}} ", model_string, append_str).as_str()
+                    .replace(operators::AND, "\\land")
+                    .replace(operators::OR, "\\lor")
+                    .replace("-", "\\neg")
+            );
+
+        }
     }
 
     fn file_init(&mut self) {
 
-        let current_time = Utc::now().format("%Y%m%d%H%M%S");
+        let current_time = Utc::now();
+        let current_time_str = current_time.format("%Y%m%d%H%M%S");
 
         if self.print_dot_proof {
-            self.file_dot = File::new(Some(format!("proof_{}.dot", current_time)));
+            self.file_dot = File::new(Some(format!("proof_{}.dot", current_time_str)));
             self.file_dot.create();
             self.file_dot.writeln("digraph {");
         }
+        if self.print_txt_proof {
+            self.file_txt = File::new(Some(format!("proof_{}.txt", current_time_str)));
+            self.file_txt.create();
+        }
         if self.print_tex_proof {
-            self.file_tex = File::new(Some(format!("proof_{}.tex", current_time)));
+            self.file_tex = File::new(Some(format!("proof_{}.tex", current_time_str)));
             self.file_tex.create();
             self.file_tex.writeln("\\documentclass{article}");
-            self.file_tex.writeln("\\usepackage{seqsplit}\\usepackage{mathtools}");
+            self.file_tex.writeln("\\usepackage{seqsplit}\\usepackage{mathtools}\\usepackage{amssymb}");
             self.file_tex.writeln("\\newcommand{\\overflow}[1]{ \\texttt{\\ttfamily\\seqsplit{$#1$}} }");
             self.file_tex.writeln("\\begin{document}");
+            self.file_tex.writeln("\\title{Proof of unsatisfiability}");
+            self.file_tex.writeln("\\author{generated by SAT solver}");
+            self.file_tex.writeln(format!("\\date{{{}}}", current_time.format("%Y %B %d %H:%M:%S")).as_str());
+            self.file_tex.writeln("\\maketitle");
+            self.file_tex.write("\\overflow{\\emptyset||F} ");
         }
     }
 
     fn file_close(&mut self) {
-        self.file_dot.writeln("}");
-        self.file_tex.writeln("\\end{document}");
+        if self.print_dot_proof {
+            self.file_dot.writeln("}");
+        }
+        if self.print_tex_proof {
+            self.file_tex.writeln("\\end{document}");
+        }
     }
 
     fn file_delete(&mut self) {
-        self.file_dot.delete();
-        self.file_tex.delete();
+        if self.print_dot_proof {
+            self.file_dot.delete();
+        }
+        if self.print_txt_proof {
+            self.file_txt.delete();
+        }
+        if self.print_tex_proof {
+            self.file_tex.delete();
+        }
     }
 
     pub fn print_stats(&self) {

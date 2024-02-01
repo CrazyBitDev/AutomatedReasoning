@@ -301,7 +301,7 @@ pub fn editor_menu<'a>(labels: Vec<&'a str>, choices: Vec<(&'a str, EditorTypes)
             },
         }
     }
-    menu_vec.push(terminal_menu::button("Back"));
+    menu_vec.push(terminal_menu::button("Save"));
 
     let menu = menu(menu_vec);
     run(&menu);
@@ -362,7 +362,7 @@ pub fn bool_confirm(message: &str, default: bool) -> Result<bool, std::io::Error
 }
 
 pub fn pause(message: Option<&str>) {
-    let mut wait_message = "Press any key to continue...";
+    let mut wait_message = "Press ENTER to continue...";
     if let Some(message) = message {
         wait_message = message;
     }

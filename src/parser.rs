@@ -47,7 +47,7 @@ pub fn parse(formula_param: Vec<String>) -> Result<Formula, io::Error> {
         Err(e) => return Err(e),
     };
 
-    cnf_converter(&mut formula_node);
+    formula_node = cnf_converter(&mut formula_node);
     
     println!("Formula: {}", formula_node);
 
@@ -254,7 +254,7 @@ fn parse_syntax(formula: Vec<String>, parenthesis: HashMap<usize, usize>) -> Res
             child.get_operator() == operators::LEFT_ARROW
         },
         |parent, child_idx| {
-            let child = parent.get_child(child_idx).unwrap();
+            let child = parent.get_mut_child(child_idx).unwrap();
             child.set_operator(operators::IFF.to_string());
             parent.remove_child(child_idx+1); 
         }, 
@@ -264,10 +264,13 @@ fn parse_syntax(formula: Vec<String>, parenthesis: HashMap<usize, usize>) -> Res
     return Ok(formula_node);
 }
 
-fn cnf_converter(formula: &mut FormulaNode) {
+fn cnf_converter(formula: &mut FormulaNode) -> FormulaNode {
+    let mut formula = formula;
     cnf::iff_solver(formula);
     cnf::if_solver(formula);
     cnf::not_solver(formula);
     tools::clear_parenthesis(formula);
-    cnf::distributivity_solver(formula);
+    let temp_formula = &mut cnf::distributivity_solver(formula);
+    formula = temp_formula;
+    formula.clone()
 }

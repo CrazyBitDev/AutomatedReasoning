@@ -60,10 +60,45 @@ pub fn not_solver(formula: &mut FormulaNode) {
     }, true)
 }
 
-pub fn distributivity_solver(formula: &mut FormulaNode) {
-    formula.iter_child(|parent| {
-        if parent.children_len() > 0 {
-            
+pub fn distributivity_solver(formula: &mut FormulaNode) -> FormulaNode {
+    let mut formula = formula.clone();
+    if formula.children_len() > 0 {
+        'iter_parent: loop {
+            let mut operator = "".to_string();
+            for child_idx in 0..formula.children_len() {
+                if let Ok(child) = formula.get_child(child_idx) {
+                    if child.is_operator() {
+                        if operator.len() == 0 {
+                            operator = child.get_operator();
+                        } else if operator != child.get_operator() {
+                            if let Ok(next_child) = formula.get_child(child_idx + 1) {
+                                let mut cloned_formula = formula.clone();
+                                'child_loop: for j in 0..child_idx {
+                                    let j_child = formula.get_child(j).unwrap();
+                                    if j_child.is_operator() {
+                                        continue 'child_loop;
+                                    }
+                                    let mut new_child = FormulaNode::new_by_children(vec![], false);
+                                    new_child.append_child(j_child.clone());
+                                    new_child.append_child(FormulaNode::new_by_operator(child.get_operator()));
+                                    new_child.append_child(next_child.clone());
+
+                                    cloned_formula.set_child(new_child, j);
+                                }
+                                cloned_formula.remove_child(child_idx);
+                                cloned_formula.remove_child(child_idx);
+                                formula = cloned_formula;
+                            } else {
+                                panic!("Error, operator without right child");
+                            }
+                            continue 'iter_parent;
+                        }
+                    }
+                }
+            }
+            break;
         }
-    }, true);
+    }
+    println!("Pending: {}", formula);
+    return formula;
 }

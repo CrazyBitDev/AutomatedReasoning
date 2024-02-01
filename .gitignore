@@ -2,3 +2,4 @@
 *.dot
 perf.data
 perf.data.**
+proof_*

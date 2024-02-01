@@ -188,19 +188,23 @@ fn main() {
                             "Change the solver options:"
                         ],
                         vec![
-                            ("Print .dot file", EditorTypes::Bool(solver.is_dot_proof_enabled())),
-                            ("Print .tex file", EditorTypes::Bool(solver.is_tex_proof_enabled()))
+                            ("Print .dot proof file", EditorTypes::Bool(solver.is_dot_proof_enabled())),
+                            ("Print .txt proof file", EditorTypes::Bool(solver.is_txt_proof_enabled())),
+                            ("Print .tex proof file", EditorTypes::Bool(solver.is_tex_proof_enabled()))
                         ]
                     ) {
                         Ok(results) => {
                             for result in results {
                                 match result {
-                                    ("Print .dot file", enabled) => {
+                                    ("Print .dot proof file", enabled) => {
                                         solver.set_dot_proof_enabled(enabled == 1);
                                     },
-                                    ("Print .tex file", enabled) => {
+                                    ("Print .txt proof file", enabled) => {
+                                        solver.set_txt_proof_enabled(enabled == 1);
+                                    },
+                                    ("Print .tex proof file", enabled) => {
                                         solver.set_tex_proof_enabled(enabled == 1);
-                                    } 
+                                    },
                                     _ => (),
                                 };
                             }

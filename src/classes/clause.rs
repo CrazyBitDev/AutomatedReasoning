@@ -15,6 +15,8 @@ pub struct Clause {
     is_always_satisfied: bool,
 
     two_watched_literals: (usize, usize),
+
+    pub learned_clause_is_used_somewhere: bool
 }
 
 impl Clause {
@@ -26,6 +28,8 @@ impl Clause {
             is_always_satisfied: false,
 
             two_watched_literals: (0, 0),
+
+            learned_clause_is_used_somewhere: false
         }
     }
     
@@ -140,7 +144,7 @@ impl Clause {
         (self.literals[self.two_watched_literals.0], self.literals[self.two_watched_literals.1])
     }
 
-    fn check_literals(&mut self) {
+    pub fn check_literals(&mut self) {
         // order by absolute value
         self.literals.sort_by(|a, b| a.abs().cmp(&b.abs()));
         // remove duplicates
@@ -155,10 +159,13 @@ impl Clause {
         }
         if self.literals.len() > 1 {
             self.two_watched_literals = (0, 1)
+        } else {
+            self.two_watched_literals = (0, 0)
         }
     }
 
     pub fn is_satisfied_by_model(&mut self, model: &Model, decision_level: usize) -> SAT {
+
         if self.is_always_satisfied || self.satisfied.is_some() {
             return SAT::Satisfiable;
         }
