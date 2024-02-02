@@ -1,8 +1,8 @@
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use std::vec;
 
 use crate::classes::{clause::Clause, formula::Formula, decision::Decision, file::File, model::Model, stats::Stats};
-use crate::tools::clause_tools::{self, clauses_are_satisfied};
+use crate::tools::clause_tools;
 use crate::consts::{sat::SAT, operators};
 
 
@@ -59,12 +59,14 @@ impl Solver {
         }
     }
     
+    /// Reset the solver to its initial state.
     pub fn reset(&mut self) {
         self.formula = Formula::new();
         self.current_learned_clause_id = 0;
         self.reset_solve();
     }
     
+    /// Reset the solver to its initial state, but keep the formula.
     pub fn reset_solve(&mut self) {
         self.model = Model::new(None);
         self.learned_clauses = Vec::new();
@@ -79,11 +81,26 @@ impl Solver {
         });
     }
 
-
+    /// Check if the formula is loaded.
+    /// 
+    /// # Returns
+    /// 
+    /// * `bool` - True if the formula is loaded, false otherwise.
+    /// 
     pub fn is_formula_loaded(&self) -> bool {
         return self.formula.get_num_clauses() != 0;
     }
 
+    /// Add a clause to the formula as a learned clause.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `clause` - The clause to add to the formula.
+    /// 
+    /// # Returns
+    /// 
+    /// * `usize` - The index of the learned clause.
+    /// 
     pub fn add_learned_clause(&mut self, clause: Clause) -> usize{
         if !self.learned_clauses.contains(&clause) {
             self.learned_clauses.push(clause);
@@ -99,11 +116,10 @@ impl Solver {
     /// 
     /// * `idx` - The index of the clause.
     /// 
-    /// # Examples
+    /// # Returns
     /// 
-    /// ```
-    /// let clause = solver.get_clause(0);
-    /// ```
+    /// * `&Clause` - The reference to the clause.
+    /// 
     fn get_clause(&self, idx: usize) -> &Clause {
         if idx < self.formula.get_num_clauses() {
             return self.formula.get_clause(idx);
@@ -111,6 +127,18 @@ impl Solver {
             return &self.learned_clauses[idx - self.formula.get_num_clauses()];
         }
     }
+
+    /// Returns a mutable reference to the clause at the given index.
+    /// If the index is out of bounds, returns a mutable reference from the learned clauses.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `idx` - The index of the clause.
+    /// 
+    /// # Returns
+    /// 
+    /// * `&mut Clause` - The mutable reference to the clause.
+    /// 
     fn get_mut_clause(&mut self, idx: usize) -> &mut Clause {
         if idx < self.formula.get_num_clauses() {
             return self.formula.get_mut_clause(idx);
@@ -119,29 +147,70 @@ impl Solver {
         }
     }
 
-    fn num_clauses(&self) -> usize {
-        return self.formula.get_num_clauses() + self.learned_clauses.len();
-    }
-
+    /// Check if the dot proof is enabled.
+    /// 
+    /// # Returns
+    /// 
+    /// * `bool` - True if the dot proof is enabled, false otherwise.
+    /// 
     pub fn is_dot_proof_enabled(&self) -> bool {
         return self.print_dot_proof;
     }
+
+    /// Check if the txt proof is enabled.
+    /// 
+    /// # Returns
+    /// 
+    /// * `bool` - True if the txt proof is enabled, false otherwise.
+    /// 
     pub fn is_txt_proof_enabled(&self) -> bool {
         return self.print_txt_proof;
     }
+
+    /// Check if the tex proof is enabled.
+    /// 
+    /// # Returns
+    /// 
+    /// * `bool` - True if the tex proof is enabled, false otherwise.
+    /// 
     pub fn is_tex_proof_enabled(&self) -> bool {
         return self.print_tex_proof;
     }
+
+    /// Set the dot proof to be enabled or disabled.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `enable` - The value to set the dot proof to.
+    /// 
     pub fn set_dot_proof_enabled(&mut self, enable: bool) {
         self.print_dot_proof = enable;
     }
+
+    /// Set the txt proof to be enabled or disabled.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `enable` - The value to set the txt proof to.
+    /// 
     pub fn set_txt_proof_enabled(&mut self, enable: bool) {
         self.print_txt_proof = enable;
     }
+
+    /// Set the tex proof to be enabled or disabled.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `enable` - The value to set the tex proof to.
+    /// 
     pub fn set_tex_proof_enabled(&mut self, enable: bool) {
         self.print_tex_proof = enable;
     }
 
+    /// Main function to solve the formula.
+    /// Returns the result of the formula if it is satisfiable, unsatisfiable or unknown.
+    /// Returns an error if the formula is not loaded.
+    /// 
     pub fn solve(&mut self) -> Result<SAT, ()> {
 
         if !self.is_formula_loaded() {
@@ -157,11 +226,14 @@ impl Solver {
 
         self.file_init();
 
-
+        // Main loop to solve the formula.
         'solve_loop: loop {
 
+            // Unit clause loop.
             'unit_clause_loop: loop {
                 let mut model_changed = false;
+
+                // Learned clauses loop.
                 'learned_clauses_loop: loop {
                     match clause_tools::get_next_unit_clause_literal(&mut self.learned_clauses, &self.model) {
                         Some((literal, clause_idx)) => {
@@ -192,6 +264,8 @@ impl Solver {
                         }
                     }
                 }
+
+                // Clauses loop.
                 'clauses_loop: loop {
                     match clause_tools::get_next_unit_clause_literal(self.formula.get_clauses(), &self.model) {
                         Some((literal, clause_idx)) => {
@@ -247,6 +321,12 @@ impl Solver {
         }
     }
 
+    /// Check if the formula is satisfiable.
+    /// 
+    /// # Returns
+    /// 
+    /// * `SAT` - The result of the formula, it is satisfiable, unsatisfiable or unknown.
+    /// * `usize` - The index of the conflict clause if the formula is unsatisfiable.
     fn check_if_satisfied(&mut self) -> (SAT, usize) {
         
         let (satisfied, conflict_clause) = clause_tools::clauses_are_satisfied(
@@ -270,16 +350,29 @@ impl Solver {
         return (satisfied + satisfied2, 0)
     }
 
+    /// Print the model of the formula.
     pub fn print_model(&self) {
         self.model.print();
     }
 
+    /// Conflict solver function.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conflict_literal` - The literal that caused the conflict.
+    /// * `clause_idx` - The index of the clause that caused the conflict.
+    /// * `conflict_clause_idx` - The index of the conflict clause.
+    /// 
+    /// # Returns
+    /// 
+    /// * `bool` - True if the conflict was solved, false if the formula is unsatisfiable.
+    /// 
     fn conflict_solver(&mut self, conflict_literal: isize, clause_idx: usize, conflict_clause_idx: usize) -> bool {
 
         self.update_vsids(conflict_clause_idx);
         self.tex_print_model("Conflict", Some(format!("{}: {}", self.get_clause(conflict_clause_idx).get_id(), self.get_clause(conflict_clause_idx))));
 
-        let mut new_clause = self.explain(conflict_literal, clause_idx, conflict_clause_idx);
+        let new_clause = self.explain(conflict_literal, clause_idx, conflict_clause_idx);
 
         if new_clause.literals_len() == 0 {
             return false;
@@ -299,13 +392,23 @@ impl Solver {
 
         self.backjump();
 
-        self.tex_print_model("Backjump", None);
-
         
         return true;
 
     }
 
+    /// Explain function.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conflict_literal` - The literal that caused the conflict.
+    /// * `clause_idx` - The index of the clause that caused the conflict.
+    /// * `conflict_clause_idx` - The index of the conflict clause.
+    /// 
+    /// # Returns
+    /// 
+    /// * `Clause` - The learned clause.
+    /// 
     fn explain(&mut self, conflict_literal: isize, clause_idx: usize, conflict_clause_idx: usize) -> Clause {
 
         self.remove_latest_propagated_literals();
@@ -380,6 +483,7 @@ impl Solver {
 
     }
 
+    /// Remove latest propagated literals function.
     fn remove_latest_propagated_literals(&mut self) {
         self.decisions[self.decision_level].get_propagated_literals().iter().for_each(|&literal| {
             self.model.remove(literal.0);
@@ -393,6 +497,7 @@ impl Solver {
         });
     }
 
+    /// Backjump function.
     fn backjump(&mut self) {
 
         self.remove_latest_propagated_literals();
@@ -402,15 +507,22 @@ impl Solver {
         }
         self.decisions.pop();
 
-
-
         if self.decisions.len() == 0 {
             self.decisions.push(Decision::new(0));
         }
+        
+        self.tex_print_model("Backjump", None);
 
         self.check_if_satisfied();
+
     }
 
+    /// Update vsids function.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conflict_clause_idx` - The index of the conflict clause.
+    /// 
     fn update_vsids(&mut self, conflict_clause_idx: usize) {
         let conflict_clause = self.get_clause(conflict_clause_idx);
         let mut vsids = self.vsids.clone();
@@ -431,6 +543,14 @@ impl Solver {
         self.vsids = vsids;
     }
 
+    /// Decision function.
+    /// It decides which literal to assign next. It uses the vsids heuristic.
+    /// If the vsids heuristic is not enough, it uses the watched literals, counting the number of occurrences of each literal.
+    /// 
+    /// # Returns
+    /// 
+    /// * `isize` - The literal to decide.
+    /// 
     fn decision(&self) -> isize {
         let vsids = self.vsids.clone();
         let mut vsids: Vec<(usize, (f32, f32))> = vsids.iter().enumerate().map(|(idx, &value)| (idx, value)).collect();
@@ -478,6 +598,8 @@ impl Solver {
         return literal * sign;
     }
 
+    /// Forget function.
+    /// It forgets half of the learned clauses.
     fn forget(&mut self) {
 
         //clone learned clauses and associate them with their id
@@ -492,11 +614,16 @@ impl Solver {
 
         let clauses_to_forget_target = self.learned_clauses.len() / 2;
         let mut clauses_forgotten = 0;
+        let mut append = String::new();
 
         for clause in learned_clauses.iter_mut() {
            // if clause.1.literals_len() > 1 && clause.0 < clauses_to_forget_target && clause.1.learned_clause_is_used_somewhere {
             if clause.0 < clauses_to_forget_target && clause.1.literals_len() > avg_clause_len {
                 self.learned_clauses.retain(|x| x.get_id() != clause.1.get_id());
+                if clauses_forgotten > 0 {
+                    append.push_str(", ");
+                }
+                append.push_str(&format!("{}", clause.1.get_id()));
                 clauses_forgotten += 1;
             }
         }
@@ -504,14 +631,29 @@ impl Solver {
         self.stats.increase_forgotten(clauses_forgotten);
         self.max_learned_clauses = (self.max_learned_clauses as f32 * 1.5).round() as usize;
 
+        self.tex_print_model("Forget", Some(format!("{}", append)));
+
     }
 
+    /// Print the arrow in the tex proof.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `arrow_str` - The string to print below the arrow.
+    /// 
     fn tex_print_arrow(&mut self, arrow_str: &str) {
         if self.print_tex_proof {
             self.file_tex.write(format!("\n\n$\\xRightarrow[\\text{{{}}}]{{}}$ ", arrow_str).as_str());
         }
     }
 
+    /// Print the model in the tex proof.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `arrow_str` - The string to print below the arrow.
+    /// * `append` - The string to append to the model.
+    ///
     fn tex_print_model(&mut self, arrow_str: &str, append: Option<String>) {
 
         if self.print_tex_proof {
@@ -570,6 +712,7 @@ impl Solver {
         }
     }
 
+    /// Initialize the proof files.
     fn file_init(&mut self) {
 
         let current_time = Utc::now();
@@ -599,6 +742,7 @@ impl Solver {
         }
     }
 
+    /// Close the proof files.
     fn file_close(&mut self) {
         if self.print_dot_proof {
             self.file_dot.writeln("}");
@@ -608,6 +752,8 @@ impl Solver {
         }
     }
 
+    /// Delete the proof files.
+    /// It is called only when the formula is satisfiable.
     fn file_delete(&mut self) {
         if self.print_dot_proof {
             self.file_dot.delete();
@@ -620,6 +766,7 @@ impl Solver {
         }
     }
 
+    /// Print the statistics of the solver.
     pub fn print_stats(&self) {
         println!("Clauses learned: {}", self.stats.get_clauses_learned());
         println!("Clauses forgotten: {}", self.stats.get_clauses_forgotten());

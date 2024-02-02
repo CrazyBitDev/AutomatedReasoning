@@ -3,7 +3,6 @@ pub mod consts;
 
 pub mod input;
 pub mod files;
-pub mod parser;
 pub mod tools;
 
 use std::vec;
@@ -11,7 +10,7 @@ use std::vec;
 pub use crate::classes::solver::Solver;
 pub use crate::consts::{sat::SAT, editor_types::EditorTypes};
 
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 fn main() {
     
@@ -117,50 +116,11 @@ fn main() {
                         vec![
                             "Select the formula format:",
                         ], vec![
-                            "PL formula",
                             "DIMACS",
                             "Back"
                         ]) {
                             Ok(choice) => {
-                                if choice == "PL formula" {
-                                    println!("To write the formula in PL format, you have to write the entire formula in a single line.");
-                                    println!("You can choose to write the literals as numbers, or as characters.");
-                                    println!("If you choose to write the literals as characters, keep in mind that the characters are case sensitive.");
-                                    println!("The literals can be separated by spaces, but it's not necessary.");
-                                    println!("\n");
-                                    println!("Between the literals, you can use the following operators:");
-                                    println!("∧ (AND): ctrl-a, *, &");
-                                    println!("∨ (OR): ctrl-o, +, |");
-                                    println!("¬ (NOT): ctrl-n, -");
-                                    println!("→ (IMPLIES): ctrl-i, ->");
-                                    println!("↔ (IFF): ctrl-f, <->");
-                                    println!("Keep in mind that you can use the parenthesis: (, )");
-                                    println!("\n");
-                                    println!("Once you have written the formula, you can press enter to continue.");
-
-                                    match input::input_formatted() {
-                                        Ok(formula) => {
-                                            if formula.len() > 0 {
-
-                                                match parser::parse(formula) {
-                                                    Ok(formulaObj) => {
-                                                        //println!("Formula: {}", formulaObj.formula_string.join(""));
-                                                    },
-                                                    Err(e) => {
-                                                        eprintln!("Error: {:?}", e);
-                                                    }
-                                                }
-                                            } else {
-                                                eprintln!("Formula: <empty>");
-                                            }
-                                        },
-                                        Err(e) => {
-                                            eprintln!("Error: {:?}", e);
-                                        }
-                                    };
-
-
-                                } else if choice == "DIMACS" {
+                                if choice == "DIMACS" {
                                     println!("To write the formula in DIMACS format, you have to write a clauses one per line.");
                                     println!("You need to write the literals as numbers separated by spaces, and the clauses must be separated by newlines.");
                                     println!("In case of a negative literal, you have to write the minus sign before the literal.");
@@ -267,8 +227,8 @@ fn main() {
 
                     match input::choice_menu(
                         vec![
-                            format!("Number of variables: {}", &solver.formula.num_variables).as_str(),
-                            format!("Number of clauses: {}", &solver.formula.num_clauses).as_str(),
+                            format!("Number of variables: {}", &solver.formula.get_num_variables()).as_str(),
+                            format!("Number of clauses: {}", &solver.formula.get_num_clauses()).as_str(),
                             "",
                             "Select the print mode:"
                         ],

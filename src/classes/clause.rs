@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::{cmp, fmt, ops};
 use std::slice::Iter;
 
@@ -33,14 +32,36 @@ impl Clause {
         }
     }
     
+    /// Set the clause id
+    /// 
+    /// # Arguments
+    /// 
+    /// * `id` - The id of the clause
+    /// 
     pub fn set_id(&mut self, id: usize) {
         self.clause_id = id;
     }
+
+    /// Get the clause id
+    /// 
+    /// # Returns
+    /// 
+    /// * `usize` - The id of the clause
+    /// 
     pub fn get_id(&self) -> usize {
         self.clause_id
     }
 
-
+    /// Load a string of literals into the clause
+    /// 
+    /// # Arguments
+    /// 
+    /// * `literal_string` - The string of literals
+    /// 
+    /// # Returns
+    /// 
+    /// * `Result<(), ()>` - Ok if the string was loaded successfully, Err if the string was invalid
+    /// 
     pub fn load_string(&mut self, literal_string: String) -> Result<(), ()> {
 
         if literal_string.trim().is_empty()
@@ -60,42 +81,118 @@ impl Clause {
         Ok(())
     }
 
+    /// Load a vector of literals into the clause
+    /// 
+    /// # Arguments
+    /// 
+    /// * `literals` - The vector of literals
+    /// 
     pub fn load_vec(&mut self, literals: Vec<isize>) {
         self.literals = literals;
         self.check_literals();
     }
 
+    /// Add a literal to the clause
+    /// 
+    /// # Arguments
+    /// 
+    /// * `literal` - The literal to add
+    /// 
     pub fn add_literal(&mut self, literal: isize) {
         self.literals.push(literal);
         self.check_literals();
     }
+
+    /// Remove a literal from the clause
+    /// 
+    /// # Arguments
+    /// 
+    /// * `literal` - The literal to remove
+    /// 
     pub fn remove_literal(&mut self, literal: isize) {
         self.literals.retain(|&x| x != literal);
         self.check_literals();
     }
+
+    /// Get the number of literals in the clause
+    /// 
+    /// # Returns
+    /// 
+    /// * `usize` - The number of literals in the clause
+    /// 
     pub fn literals_len(&self) -> usize {
         self.literals.len()
     }
+
+    /// Get the literal at a specific index
+    /// 
+    /// # Arguments
+    /// 
+    /// * `idx` - The index of the literal
+    /// 
+    /// # Returns
+    /// 
+    /// * `isize` - The literal at the index
+    /// 
     pub fn get_literal(&self, idx: usize) -> isize {
         self.literals[idx]
     }
 
+    /// Check if the clause contains a specific literal
+    /// 
+    /// # Arguments
+    /// 
+    /// * `literal` - The literal to check for
+    /// 
+    /// # Returns
+    /// 
+    /// * `bool` - True if the clause contains the literal, false otherwise
+    /// 
     pub fn contains_literal(&self, literal: isize) -> bool {
         self.literals.contains(&literal)
     }
 
+    /// Get an iterator over the literals in the clause
+    /// 
+    /// # Returns
+    /// 
+    /// * `Iter<isize>` - An iterator over the literals in the clause
+    /// 
     pub fn iter_literals(&self) -> Iter<isize> {
         return self.literals.iter();
     }
 
+    /// Check if the clause is a unit clause
+    /// It is a unit clause if it contains only one literal, or the two watched literals are the same
+    /// 
+    /// # Returns
+    /// 
+    /// * `bool` - True if the clause is a unit clause, false otherwise
+    /// 
     pub fn is_unit_clause(&self) -> bool {
         self.two_watched_literals.0 == self.two_watched_literals.1
     }
     
+    /// Check if the clause is satisfied
+    /// 
+    /// # Returns
+    /// 
+    /// * `bool` - True if the clause is satisfied, false otherwise
+    /// 
     pub fn is_satisfied(&self) -> bool {
         return self.satisfied.is_some() || self.is_always_satisfied;
     }
 
+    /// Reset the satisfied flag of the clause
+    /// 
+    /// # Arguments
+    /// 
+    /// * `current_decision_level` - The current decision level
+    /// 
+    /// # Returns
+    /// 
+    /// * `bool` - True if the clause was reset, false otherwise
+    /// 
     pub fn reset_satisfied(&mut self, current_decision_level: usize) -> bool{
 
         if let Some(satisfied_level) = self.satisfied {
@@ -120,6 +217,12 @@ impl Clause {
         return false;
     }
 
+    /// Get the watched literal index at a specific index
+    /// 
+    /// # Arguments
+    /// 
+    /// * `idx` - The index of the watched literal (0 or 1)
+    /// 
     fn get_watched_literal_idx(&self, idx: usize) -> usize {
         if idx == 0 {
             return self.two_watched_literals.0;
@@ -127,6 +230,14 @@ impl Clause {
             return self.two_watched_literals.1;
         }
     }
+
+    /// Set the watched literal index at a specific index
+    /// 
+    /// # Arguments
+    /// 
+    /// * `idx` - The index of the watched literal (0 or 1)
+    /// * `value` - The value to set the watched literal index to
+    /// 
     fn set_watched_literal_idx(&mut self, idx: usize, value: usize) {
         if idx == 0 {
             self.two_watched_literals.0 = value;
@@ -140,10 +251,19 @@ impl Clause {
         }
     }
     
+    /// Get the watched literals
+    /// 
+    /// # Returns
+    /// 
+    /// * `(isize, isize)` - The watched literals
+    /// 
     pub fn get_watched_literals(&self) -> (isize, isize) {
         (self.literals[self.two_watched_literals.0], self.literals[self.two_watched_literals.1])
     }
 
+    /// Check literals in the clause
+    /// They are ordered by absolute value, duplicates are removed, and the clause is checked for always satisfied
+    /// A clause is always satisfied if it contains a literal and its negation
     pub fn check_literals(&mut self) {
         // order by absolute value
         self.literals.sort_by(|a, b| a.abs().cmp(&b.abs()));
@@ -164,6 +284,17 @@ impl Clause {
         }
     }
 
+    /// Check if a literal is satisfied by a model
+    /// 
+    /// # Arguments
+    /// 
+    /// * `model` - The model to check
+    /// * `decision_level` - The decision level of the model
+    /// 
+    /// # Returns
+    /// 
+    /// * `SAT` - Satisfiable if the literal is satisfied, Unsatisfiable if the literal is not satisfied, Unknown if the literal is not assigned
+    /// 
     pub fn is_satisfied_by_model(&mut self, model: &Model, decision_level: usize) -> SAT {
 
         if self.is_always_satisfied || self.satisfied.is_some() {
@@ -216,7 +347,6 @@ impl Clause {
         }
     }
 
-
     pub fn is_assertion_clause(&self, decisions: &Vec<Decision>) -> bool {
         for literal in &self.literals {
             if !decisions.contains(&Decision::new(*literal)) && !decisions.contains(&Decision::new(-*literal)) {
@@ -226,6 +356,16 @@ impl Clause {
         return true;
     }
 
+    /// Get the common literals between two clauses
+    /// 
+    /// # Arguments
+    /// 
+    /// * `other` - The other clause
+    /// 
+    /// # Returns
+    /// 
+    /// * `Vec<isize>` - The common literals
+    /// 
     pub fn get_common_literals(&self, other: &Clause) -> Vec<isize> {
         //find common literals
         let mut common_literals: Vec<isize> = Vec::new();
@@ -237,16 +377,9 @@ impl Clause {
         return common_literals;
     }
 
+    /// Print the clause
     pub fn print(&self) {
         let literals_str: Vec<String> = self.literals.iter().map(|&literal| literal.to_string()).collect();
-        println!("{}", literals_str.join(" "));
-    }
-
-    fn print_with_chars(&self, literal_map: HashMap<u32, String>) {
-        let literals_str: Vec<String> = self.literals
-            .iter()
-            .map(|&literal| literal_map.get(&(literal.abs() as u32)).unwrap().clone())
-            .collect();
         println!("{}", literals_str.join(" "));
     }
 }
