@@ -1,10 +1,8 @@
-use std::{cmp, fmt, ops};
 use std::slice::Iter;
+use std::{cmp, fmt, ops};
 
 use crate::consts::{sat::SAT, operators::OR};
-
-use super::decision::Decision;
-use super::model::Model;
+use crate::classes::{decision::Decision, model::Model};
 
 #[derive(Clone)]
 pub struct Clause {

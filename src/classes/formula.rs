@@ -1,9 +1,8 @@
 use std::collections::HashSet;
 
-use crate::{classes::clause::Clause, consts::sat::SAT};
 use crate::files;
-
-use super::model::Model;
+use crate::consts::sat::SAT;
+use crate::classes::{clause::Clause, model::Model};
 
 pub struct Formula {
     clauses: Vec<Clause>,

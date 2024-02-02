@@ -1,16 +1,16 @@
-pub mod classes;
-pub mod consts;
-
 pub mod input;
 pub mod files;
 pub mod tools;
 
+pub mod consts;
+pub mod classes;
+
 use std::vec;
+use std::time::Instant;
 
 pub use crate::classes::solver::Solver;
 pub use crate::consts::{sat::SAT, editor_types::EditorTypes};
 
-use std::time::Instant;
 
 fn main() {
     

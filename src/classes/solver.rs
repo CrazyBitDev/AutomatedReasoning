@@ -1,9 +1,9 @@
-use chrono::Utc;
 use std::vec;
+use chrono::Utc;
 
-use crate::classes::{clause::Clause, formula::Formula, decision::Decision, file::File, model::Model, stats::Stats};
 use crate::tools::clause_tools;
 use crate::consts::{sat::SAT, operators};
+use crate::classes::{clause::Clause, formula::Formula, decision::Decision, file::File, model::Model, stats::Stats};
 
 
 pub struct Solver {

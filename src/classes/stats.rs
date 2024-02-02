@@ -1,5 +1,5 @@
-use memory_stats::memory_stats;
 use byte_unit::Byte;
+use memory_stats::memory_stats;
 
 pub struct Stats {
     clauses_learned: usize,

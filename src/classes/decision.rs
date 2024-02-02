@@ -1,4 +1,3 @@
-
 pub struct Decision {
     decided_literal: isize,
     

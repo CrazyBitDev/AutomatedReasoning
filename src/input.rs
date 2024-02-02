@@ -1,8 +1,7 @@
 use std::{self, io::{stdout, Write}, time::Duration};
 
-use crossterm::event::{poll, read, Event, KeyCode, KeyEventKind};
-
 use terminal_menu::{menu, run, mut_menu, TerminalMenuItem};
+use crossterm::event::{poll, read, Event, KeyCode, KeyEventKind};
 
 use crate::consts::editor_types::EditorTypes;
 

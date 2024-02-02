@@ -1,6 +1,5 @@
-use crate::classes::clause::Clause;
-use crate::classes::model::Model;
 use crate::consts::sat::SAT;
+use crate::classes::{clause::Clause, model::Model};
 
 /// Gets the next unit clause literal
 /// 
