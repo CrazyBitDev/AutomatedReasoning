@@ -517,7 +517,8 @@ impl Solver {
 
     }
 
-    /// Update vsids function.
+    /// Update vsids array.
+    /// It reduces the vsids of all literals and increases the vsids of the literals in the conflict clause.
     /// 
     /// # Arguments
     /// 
