@@ -14,6 +14,3 @@ terminal-menu = "3.0.0"
 
 [patch.crates-io]
 terminal-menu = {path = "./patch/terminal-menu-rs"}
-
-[profile.release]
-debug = true

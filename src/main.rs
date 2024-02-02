@@ -14,7 +14,7 @@ pub use crate::consts::{sat::SAT, editor_types::EditorTypes};
 use std::time::{Duration, Instant};
 
 fn main() {
-
+    
     let mut solver = Solver::new();
 
     println!("");
@@ -24,6 +24,57 @@ fn main() {
     println!("UniVR - Automated Reasoning");
     println!("      A.Y.  2023/2024      ");
     println!("");
+
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() > 1 {
+        //check if an argument is a file
+        for arg in args.iter().skip(1) {
+            if files::file_exists(arg) && arg.ends_with(".cnf") {
+                match solver.formula.load_file(arg) {
+                    Ok(()) => println!("File loaded successfully!"),
+                    Err(e) => eprintln!("Error loading file: {:?}", e),
+                }
+            } //else if is "-dot"
+            else if arg == "-dot" {
+                solver.set_dot_proof_enabled(true);
+                println!("Dot proof file enabled.")
+            } //else if is "-txt"
+            else if arg == "-txt" {
+                solver.set_txt_proof_enabled(true);
+                println!("Txt proof file enabled.")
+            } //else if is "-tex"
+            else if arg == "-tex" {
+                solver.set_tex_proof_enabled(true);
+                println!("Tex proof file enabled.")
+            }
+        }
+        if solver.is_formula_loaded() {
+            let start = Instant::now();
+            match solver.solve() {
+                Ok(sat) => {
+                    match sat {
+                        SAT::Satisfiable => {
+                            println!("The formula is satisfiable!");
+                            println!("The following model satisfies the formula:");
+                            solver.print_model();
+                        },
+                        SAT::Unsatisfiable => {
+                            println!("The formula is unsatisfiable!");
+                        },
+                        SAT::Unknown => {
+                            println!("The formula is unknown!");
+                        },
+                    }
+                    println!("Time elapsed in is: {:?}", start.elapsed());
+                    solver.print_stats();
+                },
+                Err(e) => {
+                    eprintln!("Error: {:?}", e);
+                }
+            }
+            return ();
+        }
+    }
     
     loop {
 
